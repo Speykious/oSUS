@@ -1,4 +1,5 @@
 /// General information about the beatmap
+#[derive(Clone, Debug)]
 pub struct GeneralSection {
     /// Location of the audio file relative to the current folder
     pub audio_filename: String,
@@ -51,6 +52,7 @@ pub struct GeneralSection {
 }
 
 /// Saved settings for the beatmap editor
+#[derive(Clone, Debug)]
 pub struct EditorSection {
     /// Time in milliseconds of bookmarks
     pub bookmarks: Vec<i32>,
@@ -65,6 +67,7 @@ pub struct EditorSection {
 }
 
 /// Information used to identify the beatmap
+#[derive(Clone, Debug)]
 pub struct MetadataSection {
     /// Romanised song title
     pub title: String,
@@ -89,6 +92,7 @@ pub struct MetadataSection {
 }
 
 /// Difficulty settings
+#[derive(Clone, Debug)]
 pub struct DifficultySection {
     /// HP setting (0–10)
     pub hp_drain_rate: f32,
@@ -104,6 +108,7 @@ pub struct DifficultySection {
     pub slider_tick_rate: f32,
 }
 
+#[derive(Clone, Debug)]
 pub enum EventParams {
     Background {
         /// Location of the background image relative to the beatmap directory.
@@ -145,6 +150,7 @@ pub enum EventParams {
 }
 
 /// Beatmap and storyboard graphic event
+#[derive(Clone, Debug)]
 pub struct Event {
     /// Type of the event. Some events may be referred to by either a name or a number.
     pub event_type: String,
@@ -156,6 +162,7 @@ pub struct Event {
 }
 
 /// Timing and control points
+#[derive(Clone, Debug)]
 pub struct TimingPoint {
     /// Start time of the timing section, in milliseconds from the beginning of the beatmap's audio.
     /// The end of the timing section is the next timing point's time (or never, if this is the last timing point).
@@ -179,6 +186,7 @@ pub struct TimingPoint {
     pub effects: u32,
 }
 
+#[derive(Clone, Debug)]
 pub struct Color {
     /// Red value in range `[0, 255]`.
     pub r: u8,
@@ -191,14 +199,17 @@ pub struct Color {
 }
 
 /// Combo and skin colors
+#[derive(Clone, Debug)]
 pub struct ColorsSection {
     /// Additive combo colors
-    combo_colors: Vec<Color>,
+    pub combo_colors: Vec<Color>,
     /// Additive slider track color
-    slider_track_override: Color,
+    pub slider_track_override: Color,
     /// Slider border color
-    slider_border: Color,
+    pub slider_border: Color,
 }
+
+#[derive(Clone, Debug)]
 pub struct HitSampleSet {
     /// Sample set of the normal sound.
     pub normal_set: u8,
@@ -207,18 +218,20 @@ pub struct HitSampleSet {
 }
 
 /// Anchor point used to construct a slider.
+#[derive(Clone, Debug)]
 pub struct SliderPoint {
     /// Type of curve used to construct this slider
     /// (B = bézier, C = centripetal catmull-rom, L = linear, P = perfect circle)
     /// If there is none, the point inherits the previous one.
-    curve_type: Option<char>,
+    pub curve_type: Option<char>,
     /// Horizontal coordinate of the slider point.
-    x: i32,
+    pub x: i32,
     /// Vertical coordinate of the slider point.
-    y: i32,
+    pub y: i32,
 }
 
 /// Extra parameters specific to the object's type.
+#[derive(Clone, Debug)]
 pub enum HitObjectParams {
     HitCircle,
     Slider {
@@ -264,6 +277,7 @@ pub enum HitObjectParams {
     },
 }
 
+#[derive(Clone, Debug)]
 pub struct HitSample {
     /// Sample set of the normal sound.
     pub normal_set: u8,
@@ -278,45 +292,48 @@ pub struct HitSample {
 }
 
 /// Hit object
+#[derive(Clone, Debug)]
 pub struct HitObject {
     /// Horizontal position in osu! pixels of the object.
-    x: i32,
+    pub x: i32,
     /// Vertical position in osu! pixels of the object.
-    y: i32,
+    pub y: i32,
     /// Time when the object is to be hit, in milliseconds from the beginning of the beatmap's audio.
-    time: usize,
+    pub time: usize,
     /// Bit flags indicating the type of the object.
-    object_type: u8,
+    pub object_type: u8,
     /// Bit flags indicating the hitsound applied to the object.
-    hit_sound: u8,
+    pub hit_sound: u8,
     /// Extra parameters specific to the object's type.
-    object_params: HitObjectParams,
+    pub object_params: HitObjectParams,
     /// Information about which samples are played when the object is hit.
     /// It is closely related to `hit_sound`.
     /// If it is not written, it defaults to `0:0:0:0:`.
-    hit_sample: HitSample,
+    pub hit_sample: HitSample,
 }
 
 /// `.osu` is a human-readable file format containing information about a beatmap.
-pub struct BeatmapFile {
+#[derive(Clone, Debug)]
+pub struct OsuBeatmapFile {
     /// The first line of the file which specifies the file format version.
     /// For example, `osu file format v14` is the latest *stable* version.
     /// `osu file format v128` is the current version that osu!lazer uses.
-    osu_file_format: u32,
+    pub osu_file_format: u32,
     /// General information about the beatmap
-    general: GeneralSection,
+    pub general: GeneralSection,
     /// Saved settings for the beatmap editor
-    editor: EditorSection,
+    pub editor: EditorSection,
     /// Information used to identify the beatmap
-    metadata: MetadataSection,
+    pub metadata: MetadataSection,
     /// Difficulty settings
-    difficulty: DifficultySection,
+    pub difficulty: DifficultySection,
     /// Beatmap and storyboard graphic events
-    events: Vec<Event>,
+    pub events: Vec<Event>,
     /// Timing and control points
-    timing_points: Vec<TimingPoint>,
+    pub timing_points: Vec<TimingPoint>,
     /// Combo and skin colors
-    colors: ColorsSection,
+    pub colors: ColorsSection,
     /// Hit objects
-    hit_objects: Vec<HitObject>,
+    pub hit_objects: Vec<HitObject>,
 }
+

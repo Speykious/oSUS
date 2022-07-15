@@ -1,1 +1,1 @@
-pub mod beatmap;
+pub mod osu_file;
