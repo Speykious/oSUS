@@ -109,16 +109,16 @@ pub enum EventParams {
         /// Location of the background image relative to the beatmap directory.
         /// Double quotes are usually included surrounding the filename, but they are not required.
         filename: String,
-        /// Offset in osu! pixels from the centre of the screen.
+        /// Offset in osu! pixels from the center of the screen.
         /// For example, an offset of `50,100` would have the
         /// background shown 50 osu! pixels to the right and
-        /// 100 osu! pixels down from the centre of the screen.
+        /// 100 osu! pixels down from the center of the screen.
         /// If the offset is `0,0`, writing it is optional.
         x_offset: i32,
-        /// Offset in osu! pixels from the centre of the screen.
+        /// Offset in osu! pixels from the center of the screen.
         /// For example, an offset of `50,100` would have the
         /// background shown 50 osu! pixels to the right and
-        /// 100 osu! pixels down from the centre of the screen.
+        /// 100 osu! pixels down from the center of the screen.
         /// If the offset is `0,0`, writing it is optional.
         y_offset: i32,
     },
@@ -126,16 +126,16 @@ pub enum EventParams {
         /// Location of the video relative to the beatmap directory.
         /// Double quotes are usually included surrounding the filename, but they are not required.
         filename: String,
-        /// Offset in osu! pixels from the centre of the screen.
+        /// Offset in osu! pixels from the center of the screen.
         /// For example, an offset of `50,100` would have the
         /// background shown 50 osu! pixels to the right and
-        /// 100 osu! pixels down from the centre of the screen.
+        /// 100 osu! pixels down from the center of the screen.
         /// If the offset is `0,0`, writing it is optional.
         x_offset: i32,
-        /// Offset in osu! pixels from the centre of the screen.
+        /// Offset in osu! pixels from the center of the screen.
         /// For example, an offset of `50,100` would have the
         /// background shown 50 osu! pixels to the right and
-        /// 100 osu! pixels down from the centre of the screen.
+        /// 100 osu! pixels down from the center of the screen.
         /// If the offset is `0,0`, writing it is optional.
         y_offset: i32,
     },
@@ -146,67 +146,177 @@ pub enum EventParams {
 
 /// Beatmap and storyboard graphic event
 pub struct Event {
-    start_time: usize,
-    params: EventParams,
+    /// Type of the event. Some events may be referred to by either a name or a number.
+    pub event_type: String,
+    /// Start time of the event, in milliseconds from the beginning of the beatmap's audio.
+    /// For events that do not use a start time, the default is `0`.
+    pub start_time: usize,
+    /// Extra parameters specific to the event's type.
+    pub params: EventParams,
 }
 
 /// Timing and control points
 pub struct TimingPoint {
-    time: usize,
-    beat_length: f64,
-    meter: u32,
-    sample_set: u8,
-    sample_index: u8,
-    volume: u8,
-    uninherited: bool,
-    effects: u32,
+    /// Start time of the timing section, in milliseconds from the beginning of the beatmap's audio.
+    /// The end of the timing section is the next timing point's time (or never, if this is the last timing point).
+    pub time: usize,
+    /// This property has two meanings:
+    /// - For uninherited timing points, the duration of a beat, in milliseconds.
+    /// - For inherited timing points, a negative inverse slider velocity multiplier, as a percentage.
+    ///   For example, `-50` would make all sliders in this timing section twice as fast as `slider_multiplier`.
+    pub beat_length: f64,
+    /// Amount of beats in a measure. Inherited timing points ignore this property.
+    pub meter: u32,
+    /// Default sample set for hit objects (0 = beatmap default, 1 = normal, 2 = soft, 3 = drum).
+    pub sample_set: u8,
+    /// Custom sample index for hit objects. `0` indicates osu!'s default hitsounds.
+    pub sample_index: u8,
+    /// Volume percentage for hit objects.
+    pub volume: u8,
+    /// Whether or not the timing point is uninherited.
+    pub uninherited: bool,
+    /// Bit flags that give the timing point extra effects.
+    pub effects: u32,
 }
 
 pub struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    /// Red value in range `[0, 255]`.
+    pub r: u8,
+    /// Green value in range `[0, 255]`.
+    pub g: u8,
+    /// Blue value in range `[0, 255]`.
+    pub b: u8,
+    /// Alpha value in range `[0, 255]`.
+    pub a: u8,
 }
 
 /// Combo and skin colors
 pub struct ColorsSection {
+    /// Additive combo colors
     combo_colors: Vec<Color>,
+    /// Additive slider track color
     slider_track_override: Color,
+    /// Slider border color
     slider_border: Color,
 }
+pub struct HitSampleSet {
+    /// Sample set of the normal sound.
+    pub normal_set: u8,
+    /// Sample set of the whistle, finish, and clap sounds.
+    pub addition_set: u8,
+}
 
-pub struct HitObjectParams {
-    // TODO
+/// Anchor point used to construct a slider.
+pub struct SliderPoint {
+    /// Type of curve used to construct this slider
+    /// (B = bézier, C = centripetal catmull-rom, L = linear, P = perfect circle)
+    /// If there is none, the point inherits the previous one.
+    curve_type: Option<char>,
+    /// Horizontal coordinate of the slider point.
+    x: i32,
+    /// Vertical coordinate of the slider point.
+    y: i32,
+}
+
+/// Extra parameters specific to the object's type.
+pub enum HitObjectParams {
+    HitCircle,
+    Slider {
+        /// Anchor points used to construct the slider. Each point is in the format `x:y`.
+        /// 
+        /// Note: the curve type is in this case individual to each point as Lazer allows
+        /// sliders to have multiple points of different curve types shile Stable doesn't.
+        /// This also seems to be completely bacwards-compatible, so no information is lost.
+        /// 
+        /// ## Example of slider curve points
+        /// 
+        /// ```
+        /// P|213:282|P|257:269|234:254|P|158:283|129:306|B|39:234|L|57:105|68:173
+        /// ```
+        curve_points: Vec<SliderPoint>,
+        /// Amount of times the player has to follow the slider's curve back-and-forth before
+        /// the slider is complete. It can also be interpreted as the repeat count plus one.
+        slides: u32,
+        /// Visual length in osu! pixels of the slider.
+        length: f64,
+        /// Hitsounds that play when hitting edges of the slider's curve.
+        /// The first sound is the one that plays when the slider is first clicked,
+        /// and the last sound is the one that plays when the slider's end is hit.
+        edge_hitsounds: Vec<u8>,
+        /// Sample sets used for the edge hitounds.
+        /// Each set is in the format `normal_set:addition_set`, with the same meaning as in the hitsounds section.
+        edge_samplesets: Vec<HitSampleSet>,
+    },
+    /// Note: `x` and `y` do not affect spinners. They default to the center of the playfield, `256,192`.
+    Spinner {
+        /// End time of the spinner, in milliseconds from the beginning of the beatmap's audio.
+        end_time: usize,
+    },
+    /// (osu!mania only)
+    /// 
+    /// Note: `x` determines the index of the column that the hold will be in.
+    /// It is computed by `floor(x * column_count / 512)` and clamped between `0` and `column_count - 1`.
+    /// 
+    /// `y` does not affect holds. It defaults to the center of the playfield, `192`.
+    Hold {
+        /// End time of the hold, in milliseconds from the beginning of the beatmap's audio.
+        end_time: usize,
+    },
 }
 
 pub struct HitSample {
-    normal_set: u32,
-    addition_set: u32,
-    index: u32,
-    volume: u8,
-    filename: Option<String>,
+    /// Sample set of the normal sound.
+    pub normal_set: u8,
+    /// Sample set of the whistle, finish, and clap sounds.
+    pub addition_set: u8,
+    /// Index of the sample. If this is `0`, the timing point's sample index will be used instead.
+    pub index: u32,
+    /// Volume of the sample from 1 to 100. If this is `0`, the timing point's volume will be used instead.
+    pub volume: u8,
+    /// Custom filename of the addition sound.
+    pub filename: Option<String>,
 }
 
 /// Hit object
 pub struct HitObject {
+    /// Horizontal position in osu! pixels of the object.
     x: i32,
+    /// Vertical position in osu! pixels of the object.
     y: i32,
+    /// Time when the object is to be hit, in milliseconds from the beginning of the beatmap's audio.
     time: usize,
-    object_type: u32,
-    hit_sound: u32,
+    /// Bit flags indicating the type of the object.
+    object_type: u8,
+    /// Bit flags indicating the hitsound applied to the object.
+    hit_sound: u8,
+    /// Extra parameters specific to the object's type.
     object_params: HitObjectParams,
-    hit_sample: HitSample
+    /// Information about which samples are played when the object is hit.
+    /// It is closely related to `hit_sound`.
+    /// If it is not written, it defaults to `0:0:0:0:`.
+    hit_sample: HitSample,
 }
 
+/// `.osu` is a human-readable file format containing information about a beatmap.
 pub struct BeatmapFile {
+    /// The first line of the file which specifies the file format version.
+    /// For example, `osu file format v14` is the latest *stable* version.
+    /// `osu file format v128` is the current version that osu!lazer uses.
     osu_file_format: u32,
+    /// General information about the beatmap
     general: GeneralSection,
+    /// Saved settings for the beatmap editor
     editor: EditorSection,
+    /// Information used to identify the beatmap
     metadata: MetadataSection,
+    /// Difficulty settings
     difficulty: DifficultySection,
+    /// Beatmap and storyboard graphic events
     events: Vec<Event>,
+    /// Timing and control points
     timing_points: Vec<TimingPoint>,
+    /// Combo and skin colors
     colors: ColorsSection,
+    /// Hit objects
     hit_objects: Vec<HitObject>,
 }
