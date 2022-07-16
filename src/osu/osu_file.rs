@@ -1,3 +1,11 @@
+use std::path::Path;
+
+use error_stack::Result;
+
+use super::osu_file_parsing::{parse_osu_file, OsuBeatmapParseError};
+
+pub type Timestamp = f64;
+
 /// General information about the beatmap
 #[derive(Clone, Debug)]
 pub struct GeneralSection {
@@ -8,7 +16,7 @@ pub struct GeneralSection {
     /// Deprecated
     pub audio_hash: String,
     /// Time in milliseconds when the audio preview should start
-    pub preview_time: i32,
+    pub preview_time: Timestamp,
     /// Speed of the countdown before the first hit object
     /// - 0 = no countdown
     /// - 1 = normal
@@ -145,7 +153,7 @@ pub enum EventParams {
         y_offset: i32,
     },
     Break {
-        end_time: usize,
+        end_time: Timestamp,
     },
 }
 
@@ -156,7 +164,7 @@ pub struct Event {
     pub event_type: String,
     /// Start time of the event, in milliseconds from the beginning of the beatmap's audio.
     /// For events that do not use a start time, the default is `0`.
-    pub start_time: usize,
+    pub start_time: Timestamp,
     /// Extra parameters specific to the event's type.
     pub params: EventParams,
 }
@@ -166,7 +174,7 @@ pub struct Event {
 pub struct TimingPoint {
     /// Start time of the timing section, in milliseconds from the beginning of the beatmap's audio.
     /// The end of the timing section is the next timing point's time (or never, if this is the last timing point).
-    pub time: usize,
+    pub time: Timestamp,
     /// This property has two meanings:
     /// - For uninherited timing points, the duration of a beat, in milliseconds.
     /// - For inherited timing points, a negative inverse slider velocity multiplier, as a percentage.
@@ -236,13 +244,13 @@ pub enum HitObjectParams {
     HitCircle,
     Slider {
         /// Anchor points used to construct the slider. Each point is in the format `x:y`.
-        /// 
+        ///
         /// Note: the curve type is in this case individual to each point as Lazer allows
         /// sliders to have multiple points of different curve types shile Stable doesn't.
         /// This also seems to be completely bacwards-compatible, so no information is lost.
-        /// 
+        ///
         /// ## Example of slider curve points
-        /// 
+        ///
         /// ```
         /// P|213:282|P|257:269|234:254|P|158:283|129:306|B|39:234|L|57:105|68:173
         /// ```
@@ -263,17 +271,17 @@ pub enum HitObjectParams {
     /// Note: `x` and `y` do not affect spinners. They default to the center of the playfield, `256,192`.
     Spinner {
         /// End time of the spinner, in milliseconds from the beginning of the beatmap's audio.
-        end_time: usize,
+        end_time: Timestamp,
     },
     /// (osu!mania only)
-    /// 
+    ///
     /// Note: `x` determines the index of the column that the hold will be in.
     /// It is computed by `floor(x * column_count / 512)` and clamped between `0` and `column_count - 1`.
-    /// 
+    ///
     /// `y` does not affect holds. It defaults to the center of the playfield, `192`.
     Hold {
         /// End time of the hold, in milliseconds from the beginning of the beatmap's audio.
-        end_time: usize,
+        end_time: Timestamp,
     },
 }
 
@@ -299,7 +307,7 @@ pub struct HitObject {
     /// Vertical position in osu! pixels of the object.
     pub y: i32,
     /// Time when the object is to be hit, in milliseconds from the beginning of the beatmap's audio.
-    pub time: usize,
+    pub time: Timestamp,
     /// Bit flags indicating the type of the object.
     pub object_type: u8,
     /// Bit flags indicating the hitsound applied to the object.
@@ -337,3 +345,11 @@ pub struct OsuBeatmapFile {
     pub hit_objects: Vec<HitObject>,
 }
 
+impl OsuBeatmapFile {
+    pub fn parse<P>(path: P) -> Result<OsuBeatmapFile, OsuBeatmapParseError>
+    where
+        P: AsRef<Path>,
+    {
+        parse_osu_file(path)
+    }
+}
