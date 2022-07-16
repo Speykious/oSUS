@@ -35,7 +35,7 @@ where
             filename: filename.clone(),
         })?;
 
-    log::warn!("Format string: {fformat_string:?}");
+    eprintln!("\n\n\nFormat string: {fformat_string:?}");
 
     // Remove ZERO WIDTH NO-BREAK SPACE (\u{feff}).
     // It seems to appear on v128 file formats...
@@ -52,11 +52,21 @@ where
             ))
         )?;
 
-    log::debug!("Format version of {:?}: {format_version}", filename.clone());
+    eprintln!("Format version of {:?}: {format_version}", filename.clone());
 
-    // for line in reader.lines() {
+    for line in reader.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(e) => {
+                log::warn!("Couldn't read line: {e}");
+                continue;
+            },
+        };
 
-    // }
+        eprintln!("  {line:?}");
+    }
+
+    eprintln!();
 
     Err(Report::new(OsuBeatmapParseError {
         filename: filename.clone(),
