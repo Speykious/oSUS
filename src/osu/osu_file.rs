@@ -8,6 +8,17 @@ use super::osu_file_parsing::{parse_osu_file, OsuBeatmapParseError};
 
 pub type Timestamp = f64;
 
+/// Draw order of hit circle overlays compared to hit numbers.
+#[derive(Clone, Copy, Debug)]
+pub enum OverlayPosition {
+    /// use skin setting
+    NoChange,
+    /// draw overlays under numbers
+    Below,
+    /// draw overlays on top of numbers
+    Above,
+}
+
 /// General information about the beatmap
 #[derive(Clone, Debug)]
 pub struct GeneralSection {
@@ -16,7 +27,7 @@ pub struct GeneralSection {
     /// Milliseconds of silence before the audio starts playing
     pub audio_lead_in: i32,
     /// Deprecated
-    pub audio_hash: String,
+    pub audio_hash: Option<String>,
     /// Time in milliseconds when the audio preview should start
     pub preview_time: Timestamp,
     /// Speed of the countdown before the first hit object
@@ -45,10 +56,10 @@ pub struct GeneralSection {
     /// Draw order of hit circle overlays compared to hit numbers
     /// - NoChange = use skin setting,
     /// - Below = draw overlays under numbers
-    /// - Above = draw overlays on top of numbers)
-    pub overlay_position: String,
+    /// - Above = draw overlays on top of numbers
+    pub overlay_position: OverlayPosition,
     /// Preferred skin to use during gameplay
-    pub skin_preference: String,
+    pub skin_preference: Option<String>,
     /// Whether or not a warning about flashing colours should be shown at the beginning of the map
     pub epilepsy_warning: bool,
     /// Time in beats that the countdown starts before the first hit object
@@ -59,6 +70,32 @@ pub struct GeneralSection {
     pub widescreen_storyboard: bool,
     /// Whether or not sound samples will change rate when playing with speed-changing mods
     pub samples_match_playback_rate: bool,
+}
+
+impl Default for GeneralSection {
+    fn default() -> Self {
+        Self {
+            audio_filename: "".to_owned(),
+            audio_lead_in: 0,
+            audio_hash: None,
+            preview_time: -1.,
+            countdown: 1,
+            sample_set: "Normal".to_owned(),
+            stack_leniency: 0.7,
+            mode: 0,
+            letterbox_in_breaks: false,
+            story_fire_in_front: true,
+            use_skin_sprites: false,
+            always_show_playfield: false,
+            overlay_position: OverlayPosition::NoChange,
+            skin_preference: None,
+            epilepsy_warning: false,
+            countdown_offset: 0,
+            special_style: false,
+            widescreen_storyboard: false,
+            samples_match_playback_rate: false,
+        }
+    }
 }
 
 /// Saved settings for the beatmap editor
@@ -196,7 +233,7 @@ pub struct TimingPoint {
     pub effects: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Color {
     /// Red value in range `[0, 255]`.
     pub r: u8,
@@ -205,7 +242,7 @@ pub struct Color {
     /// Blue value in range `[0, 255]`.
     pub b: u8,
     /// Alpha value in range `[0, 255]`.
-    pub a: u8,
+    pub a: Option<u8>,
 }
 
 /// Combo and skin colors
@@ -219,7 +256,7 @@ pub struct ColorsSection {
     pub slider_border: Color,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct HitSampleSet {
     /// Sample set of the normal sound.
     pub normal_set: u8,
@@ -227,13 +264,27 @@ pub struct HitSampleSet {
     pub addition_set: u8,
 }
 
+/// Type of curve used to construct a slider at a particular point.
+#[derive(Clone, Copy, Debug)]
+pub enum SliderCurveType {
+    /// inherit the previous point's curve type
+    Inherit,
+    /// bézier curve
+    Bezier,
+    /// centripetal catmull-rom
+    Catmull,
+    /// linear
+    Linear,
+    /// perfect circle (legacy) / perfect curve (lazer)
+    PerfectCurve,
+}
+
 /// Anchor point used to construct a slider.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SliderPoint {
-    /// Type of curve used to construct this slider
+    /// Type of curve used to construct this slider.
     /// (B = bézier, C = centripetal catmull-rom, L = linear, P = perfect circle)
-    /// If there is none, the point inherits the previous one.
-    pub curve_type: Option<char>,
+    pub curve_type: SliderCurveType,
     /// Horizontal coordinate of the slider point.
     pub x: i32,
     /// Vertical coordinate of the slider point.
