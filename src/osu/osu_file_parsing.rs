@@ -48,8 +48,8 @@ where
                 filename: filename.clone(),
             })
             .attach_printable(format!(
-                "File doesn't start with 'osu file format v<version>'"
-            )),
+                "File doesn't start with \"osu file format v<version>\" (Format string: {fformat_string:?})"
+            ))
         )?;
 
     log::debug!("Format version of {:?}: {format_version}", filename.clone());
