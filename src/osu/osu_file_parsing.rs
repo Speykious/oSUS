@@ -31,58 +31,87 @@ fn parse_general_section(
 ) -> Result<GeneralSection, SectionParseError> {
     let mut section = GeneralSection::default();
 
-    while let Some(line) = reader.next() {
-        let line = section_ctx!(line, General)?;
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, General)?;
 
-        // We stop once we encounter a new section
-        if line.starts_with('[') && line.ends_with(']') {
-            *section_header = Some(line);
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let (field, value) = section_ctx!(parse_field_value_pair(&line), General)?;
+
+            match field.as_str() {
+                "AudioFilename" => section.audio_filename = to_standardized_path(&value),
+                "AudioLeadIn" => {
+                    section.audio_lead_in = section_fvp_rctx!(value.parse(), General, AudioLeadIn)?
+                }
+                "AudioHash" => section.audio_hash = Some(value),
+                "PreviewTime" => {
+                    section.preview_time = section_fvp_rctx!(value.parse(), General, PreviewTime)?
+                }
+                "Countdown" => {
+                    section.countdown = section_fvp_rctx!(value.parse(), General, Countdown)?
+                }
+                "SampleSet" => section.sample_set = value,
+                "StackLeniency" => {
+                    section.stack_leniency =
+                        section_fvp_rctx!(value.parse(), General, StackLeniency)?
+                }
+                "Mode" => section.mode = section_fvp_rctx!(value.parse(), General, Mode)?,
+                "LetterboxInBreaks" => {
+                    section.letterbox_in_breaks =
+                        section_fvp_rctx!(value.parse::<u8>(), General, LetterboxInBreaks)? != 0;
+                }
+                "StoryFireInFront" => {
+                    section.story_fire_in_front =
+                        section_fvp_rctx!(value.parse::<u8>(), General, StoryFireInFront)? != 0;
+                }
+                "UseSkinSprites" => {
+                    section.use_skin_sprites =
+                        section_fvp_rctx!(value.parse::<u8>(), General, UseSkinSprites)? != 0;
+                }
+                "AlwaysShowPlayfield" => {
+                    section.always_show_playfield =
+                        section_fvp_rctx!(value.parse::<u8>(), General, AlwaysShowPlayfield)? != 0;
+                }
+                "OverlayPosition" => {
+                    section.overlay_position =
+                        section_fvp_rctx!(value.parse(), General, OverlayPosition)?;
+                }
+                "SkinPreference" => section.skin_preference = Some(value),
+                "EpilepsyWarning" => {
+                    section.epilepsy_warning =
+                        section_fvp_rctx!(value.parse::<u8>(), General, EpilepsyWarning)? != 0;
+                }
+                "CountdownOffset" => {
+                    section.countdown_offset =
+                        section_fvp_rctx!(value.parse(), General, CountdownOffset)?;
+                }
+                "SpecialStyle" => {
+                    section.special_style =
+                        section_fvp_rctx!(value.parse::<u8>(), General, SpecialStyle)? != 0;
+                }
+                "WidescreenStoryboard" => {
+                    section.widescreen_storyboard =
+                        section_fvp_rctx!(value.parse::<u8>(), General, WidescreenStoryboard)? != 0;
+                }
+                "SamplesMatchPlaybackRate" => {
+                    section.samples_match_playback_rate =
+                        section_fvp_rctx!(value.parse::<u8>(), General, SamplesMatchPlaybackRate)?
+                            != 0;
+                }
+                key => {
+                    return Err(Report::new(SectionParseError::from("General"))
+                        .attach_printable(format!("Unknown field {key:?}")));
+                }
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
             break;
-        }
-
-        let (field, value) = section_ctx!(parse_field_value_pair(&line), General)?;
-
-        match field.as_str() {
-            "AudioFilename" => section.audio_filename = to_standardized_path(&value),
-            "AudioLeadIn" => section.audio_lead_in = section_rctx!(value.parse(), General)?,
-            "AudioHash" => section.audio_hash = Some(value),
-            "PreviewTime" => section.preview_time = section_rctx!(value.parse(), General)?,
-            "Countdown" => section.countdown = section_rctx!(value.parse(), General)?,
-            "SampleSet" => section.sample_set = value,
-            "StackLeniency" => section.stack_leniency = section_rctx!(value.parse(), General)?,
-            "Mode" => section.mode = section_rctx!(value.parse(), General)?,
-            "LetterboxInBreaks" => {
-                section.letterbox_in_breaks = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "StoryFireInFront" => {
-                section.story_fire_in_front = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "UseSkinSprites" => {
-                section.use_skin_sprites = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "AlwaysShowPlayfield" => {
-                section.always_show_playfield = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "OverlayPosition" => section.overlay_position = section_rctx!(value.parse(), General)?,
-            "SkinPreference" => section.skin_preference = Some(value),
-            "EpilepsyWarning" => {
-                section.epilepsy_warning = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "CountdownOffset" => section.countdown_offset = section_rctx!(value.parse(), General)?,
-            "SpecialStyle" => {
-                section.special_style = section_rctx!(value.parse::<u8>(), General)? != 0
-            }
-            "WidescreenStoryboard" => {
-                section.widescreen_storyboard = section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            "SamplesMatchPlaybackRate" => {
-                section.samples_match_playback_rate =
-                    section_rctx!(value.parse::<u8>(), General)? != 0;
-            }
-            key => {
-                return Err(Report::new(SectionParseError::from("General"))
-                    .attach_printable(format!("Unknown field {key:?}")));
-            }
         }
     }
 

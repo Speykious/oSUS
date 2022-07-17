@@ -18,7 +18,7 @@ macro_rules! rctx {
 }
 
 #[macro_export]
-/// Wraps the result in a report with a `SectionParseError` context of a given section, lazily.
+/// Wraps the result in a `SectionParseError` context of a given section, lazily.
 macro_rules! section_ctx {
     ($result:expr, $section:ident) => {
         ctx!(($result), SectionParseError::from(stringify!($section)))
@@ -30,6 +30,23 @@ macro_rules! section_ctx {
 macro_rules! section_rctx {
     ($result:expr, $section:ident) => {
         section_ctx!(($result).report(), $section)
+    };
+}
+
+#[macro_export]
+/// Section context with printable attached for specific field value parsing error.
+macro_rules! section_fvp_ctx {
+    ($result:expr, $section:ident, $field:ident) => {
+        section_ctx!(($result), $section)
+            .attach_printable_lazy(|| format!("Could not parse value for {} field", stringify!($field)))
+    };
+}
+
+#[macro_export]
+/// Section context with printable attached for specific field value parsing error.
+macro_rules! section_fvp_rctx {
+    ($result:expr, $section:ident, $field:ident) => {
+        section_fvp_ctx!(($result).report(), $section, $field)
     };
 }
 
