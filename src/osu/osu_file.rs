@@ -403,26 +403,26 @@ pub struct HitObject {
 }
 
 /// `.osu` is a human-readable file format containing information about a beatmap.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct OsuBeatmapFile {
     /// The first line of the file which specifies the file format version.
     /// For example, `osu file format v14` is the latest *stable* version.
     /// `osu file format v128` is the current version that osu!lazer uses.
     pub osu_file_format: u32,
     /// General information about the beatmap
-    pub general: GeneralSection,
+    pub general: Option<GeneralSection>,
     /// Saved settings for the beatmap editor
-    pub editor: EditorSection,
+    pub editor: Option<EditorSection>,
     /// Information used to identify the beatmap
-    pub metadata: MetadataSection,
+    pub metadata: Option<MetadataSection>,
     /// Difficulty settings
-    pub difficulty: DifficultySection,
+    pub difficulty: Option<DifficultySection>,
     /// Beatmap and storyboard graphic events
     pub events: Vec<Event>,
     /// Timing and control points
     pub timing_points: Vec<TimingPoint>,
     /// Combo and skin colors
-    pub colors: ColorsSection,
+    pub colors: Option<ColorsSection>,
     /// Hit objects
     pub hit_objects: Vec<HitObject>,
 }
