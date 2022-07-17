@@ -1,4 +1,5 @@
 use std::env;
+use std::path::Path;
 
 use error_stack::Result;
 use osu::osu_file::OsuBeatmapFile;
@@ -20,10 +21,18 @@ fn main() -> Result<(), OsuBeatmapParseError> {
 
     for path in args {
         match OsuBeatmapFile::parse(&path) {
-            Ok(beatmap) => println!("Beatmap: {beatmap:#?}"),
+            Ok(beatmap) => {
+                let file_name = Path::new(&path)
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .expect("File name will aways exist, right?");
+
+                println!("Beatmap: {file_name}\n{beatmap:#?}")
+            }
             Err(err) => {
                 log::error!("\n{err:?}");
-            },
+            }
         }
     }
 
