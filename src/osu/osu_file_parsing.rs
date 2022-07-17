@@ -44,23 +44,13 @@ fn parse_general_section(
 
         match field.as_str() {
             "AudioFilename" => section.audio_filename = value,
-            "AudioLeadIn" => {
-                section.audio_lead_in = section_rctx!(value.parse(), General)?;
-            }
+            "AudioLeadIn" => section.audio_lead_in = section_rctx!(value.parse(), General)?,
             "AudioHash" => section.audio_hash = Some(value),
-            "PreviewTime" => {
-                section.preview_time = section_rctx!(value.parse(), General)?;
-            }
-            "Countdown" => {
-                section.countdown = section_rctx!(value.parse(), General)?;
-            }
+            "PreviewTime" => section.preview_time = section_rctx!(value.parse(), General)?,
+            "Countdown" => section.countdown = section_rctx!(value.parse(), General)?,
             "SampleSet" => section.sample_set = value,
-            "StackLeniency" => {
-                section.stack_leniency = section_rctx!(value.parse(), General)?;
-            }
-            "Mode" => {
-                section.mode = section_rctx!(value.parse(), General)?;
-            }
+            "StackLeniency" => section.stack_leniency = section_rctx!(value.parse(), General)?,
+            "Mode" => section.mode = section_rctx!(value.parse(), General)?,
             "LetterboxInBreaks" => {
                 section.letterbox_in_breaks = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
@@ -73,16 +63,12 @@ fn parse_general_section(
             "AlwaysShowPlayfield" => {
                 section.always_show_playfield = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
-            "OverlayPosition" => {
-                section.overlay_position = section_rctx!(value.parse(), General)?;
-            }
+            "OverlayPosition" => section.overlay_position = section_rctx!(value.parse(), General)?,
             "SkinPreference" => section.skin_preference = Some(value),
             "EpilepsyWarning" => {
                 section.epilepsy_warning = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
-            "CountdownOffset" => {
-                section.countdown_offset = section_rctx!(value.parse(), General)?;
-            }
+            "CountdownOffset" => section.countdown_offset = section_rctx!(value.parse(), General)?,
             "SpecialStyle" => {
                 section.special_style = section_rctx!(value.parse::<u8>(), General)? != 0
             }
@@ -124,16 +110,11 @@ where
     let mut beatmap = OsuBeatmapFile::default();
 
     let filename = path.as_ref().file_name().unwrap();
-    let file = File::open(&path)
-        .report()
-        .change_context_lazy(|| OsuBeatmapParseError::from(filename))?;
+    let file = rctx!(File::open(&path), OsuBeatmapParseError::from(filename))?;
 
     let mut reader = BufReader::new(file)
         .lines()
-        .map(|line| {
-            line.report()
-                .change_context_lazy(|| OsuBeatmapParseError::from(filename))
-        })
+        .map(|line| rctx!(line, OsuBeatmapParseError::from(filename)))
         .filter(|line| match line {
             Ok(line) => !line.trim().is_empty(),
             Err(_) => true,
