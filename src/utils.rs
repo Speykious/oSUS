@@ -21,7 +21,15 @@ macro_rules! rctx {
 /// Wraps the result in a report with a `SectionParseError` context of a given section, lazily.
 macro_rules! section_ctx {
     ($result:expr, $section:ident) => {
-        ctx!(($result).report(), SectionParseError::from(stringify!($section)))
+        ctx!(($result), SectionParseError::from(stringify!($section)))
+    };
+}
+
+#[macro_export]
+/// Wraps the result in a report with a `SectionParseError` context of a given section, lazily.
+macro_rules! section_rctx {
+    ($result:expr, $section:ident) => {
+        section_ctx!(($result).report(), $section)
     };
 }
 

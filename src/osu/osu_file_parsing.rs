@@ -31,60 +31,59 @@ fn parse_general_section(
     let mut section = GeneralSection::default();
 
     while let Some(line) = reader.next() {
-        let line = line.change_context_lazy(|| SectionParseError::from("General"))?;
-        let (field, value) = parse_field_value_pair(&line)
-            .change_context_lazy(|| SectionParseError::from("General"))?;
+        let line = section_ctx!(line, General)?;
+        let (field, value) = section_ctx!(parse_field_value_pair(&line), General)?;
 
         match field.as_str() {
             "AudioFilename" => section.audio_filename = value,
             "AudioLeadIn" => {
-                section.audio_lead_in = section_ctx!(value.parse(), General)?;
+                section.audio_lead_in = section_rctx!(value.parse(), General)?;
             }
             "AudioHash" => section.audio_hash = Some(value),
             "PreviewTime" => {
-                section.preview_time = section_ctx!(value.parse(), General)?;
+                section.preview_time = section_rctx!(value.parse(), General)?;
             }
             "Countdown" => {
-                section.countdown = section_ctx!(value.parse(), General)?;
+                section.countdown = section_rctx!(value.parse(), General)?;
             }
             "SampleSet" => section.sample_set = value,
             "StackLeniency" => {
-                section.stack_leniency = section_ctx!(value.parse(), General)?;
+                section.stack_leniency = section_rctx!(value.parse(), General)?;
             }
             "Mode" => {
-                section.mode = section_ctx!(value.parse(), General)?;
+                section.mode = section_rctx!(value.parse(), General)?;
             }
             "LetterboxInBreaks" => {
-                section.letterbox_in_breaks = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.letterbox_in_breaks = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "StoryFireInFront" => {
-                section.story_fire_in_front = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.story_fire_in_front = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "UseSkinSprites" => {
-                section.use_skin_sprites = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.use_skin_sprites = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "AlwaysShowPlayfield" => {
-                section.always_show_playfield = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.always_show_playfield = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "OverlayPosition" => {
-                section.overlay_position = section_ctx!(value.parse(), General)?;
+                section.overlay_position = section_rctx!(value.parse(), General)?;
             }
             "SkinPreference" => section.skin_preference = Some(value),
             "EpilepsyWarning" => {
-                section.epilepsy_warning = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.epilepsy_warning = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "CountdownOffset" => {
-                section.countdown_offset = section_ctx!(value.parse(), General)?;
+                section.countdown_offset = section_rctx!(value.parse(), General)?;
             }
             "SpecialStyle" => {
-                section.special_style = section_ctx!(value.parse::<u8>(), General)? != 0
+                section.special_style = section_rctx!(value.parse::<u8>(), General)? != 0
             }
             "WidescreenStoryboard" => {
-                section.widescreen_storyboard = section_ctx!(value.parse::<u8>(), General)? != 0;
+                section.widescreen_storyboard = section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             "SamplesMatchPlaybackRate" => {
                 section.samples_match_playback_rate =
-                    section_ctx!(value.parse::<u8>(), General)? != 0;
+                    section_rctx!(value.parse::<u8>(), General)? != 0;
             }
             key => {
                 return Err(Report::new(SectionParseError::from("General"))
@@ -157,7 +156,6 @@ where
                     parse_general_section(&mut reader),
                     OsuBeatmapParseError::from(filename)
                 )?);
-
             }
             _ => break,
         };
