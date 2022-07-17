@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
 use std::path::Path;
+use std::str::FromStr;
 
 use error_stack::Result;
+use thiserror::Error;
 
 use super::osu_file_parsing::{parse_osu_file, OsuBeatmapParseError};
 
@@ -17,6 +19,33 @@ pub enum OverlayPosition {
     Below,
     /// draw overlays on top of numbers
     Above,
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Invalid overlay position: {op_string:?}. Expected NoChange, Below or Above")]
+pub struct InvalidOverlayPositionError {
+    pub op_string: String,
+}
+
+impl From<&str> for InvalidOverlayPositionError {
+    fn from(op_str: &str) -> Self {
+        Self {
+            op_string: op_str.to_owned(),
+        }
+    }
+}
+
+impl FromStr for OverlayPosition {
+    type Err = InvalidOverlayPositionError;
+
+    fn from_str(op_str: &str) -> core::result::Result<Self, Self::Err> {
+        match op_str {
+            "NoChange" => Ok(OverlayPosition::NoChange),
+            "Below" => Ok(OverlayPosition::Below),
+            "Above" => Ok(OverlayPosition::Above),
+            _ => Err(InvalidOverlayPositionError::from(op_str)),
+        }
+    }
 }
 
 /// General information about the beatmap
