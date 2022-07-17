@@ -4,6 +4,8 @@ use error_stack::Result;
 use osu::osu_file::OsuBeatmapFile;
 use osu::osu_file_parsing::OsuBeatmapParseError;
 
+#[macro_use]
+mod utils;
 mod osu;
 
 fn main() -> Result<(), OsuBeatmapParseError> {
