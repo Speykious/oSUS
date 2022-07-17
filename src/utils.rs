@@ -59,3 +59,7 @@ pub fn parse_field_value_pair(line: &str) -> Result<(String, String), InvalidKey
 
     Ok((field, value))
 }
+
+pub fn to_standardized_path(path: &str) -> String {
+    path.replace('\\', "/")
+}

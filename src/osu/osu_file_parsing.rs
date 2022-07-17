@@ -6,7 +6,7 @@ use std::path::Path;
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
-use crate::utils::parse_field_value_pair;
+use crate::utils::{parse_field_value_pair, to_standardized_path};
 
 use super::osu_file::{GeneralSection, OsuBeatmapFile};
 
@@ -43,7 +43,7 @@ fn parse_general_section(
         let (field, value) = section_ctx!(parse_field_value_pair(&line), General)?;
 
         match field.as_str() {
-            "AudioFilename" => section.audio_filename = value,
+            "AudioFilename" => section.audio_filename = to_standardized_path(&value),
             "AudioLeadIn" => section.audio_lead_in = section_rctx!(value.parse(), General)?,
             "AudioHash" => section.audio_hash = Some(value),
             "PreviewTime" => section.preview_time = section_rctx!(value.parse(), General)?,
