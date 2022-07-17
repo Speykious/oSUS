@@ -120,10 +120,16 @@ where
         .report()
         .change_context_lazy(|| OsuBeatmapParseError::from(filename))?;
 
-    let mut reader = BufReader::new(file).lines().map(|line| {
-        line.report()
-            .change_context_lazy(|| OsuBeatmapParseError::from(filename))
-    });
+    let mut reader = BufReader::new(file)
+        .lines()
+        .map(|line| {
+            line.report()
+                .change_context_lazy(|| OsuBeatmapParseError::from(filename))
+        })
+        .filter(|line| match line {
+            Ok(line) => !line.trim().is_empty(),
+            Err(_) => true,
+        });
 
     let fformat_string = reader.next().ok_or_else(|| {
         Report::new(OsuBeatmapParseError::from(filename)).attach_printable(format!("File is empty"))
