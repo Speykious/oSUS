@@ -27,11 +27,19 @@ impl From<&str> for SectionParseError {
 /// Parse a `[General]` section
 fn parse_general_section(
     reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
 ) -> Result<GeneralSection, SectionParseError> {
     let mut section = GeneralSection::default();
 
     while let Some(line) = reader.next() {
         let line = section_ctx!(line, General)?;
+
+        // We stop once we encounter a new section
+        if line.starts_with('[') && line.ends_with(']') {
+            *section_header = Some(line);
+            break;
+        }
+
         let (field, value) = section_ctx!(parse_field_value_pair(&line), General)?;
 
         match field.as_str() {
@@ -149,22 +157,25 @@ where
 
     beatmap.osu_file_format = rctx!(format_version.parse(), OsuBeatmapParseError::from(filename))?;
 
-    // Read file lazily line by line
-    while let Some(line) = reader.next() {
+    // Read file lazily section by section
+    if let Some(line) = reader.next() {
         let line = line?;
-        if line.is_empty() {
-            continue;
+        let mut section_header: Option<String> = Some(line);
+        while let Some(section_str) = &section_header {
+            match section_str.as_str() {
+                "[General]" => {
+                    beatmap.general = Some(ctx!(
+                        parse_general_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?);
+                }
+                _ => section_header = None,
+                // section_str => {
+                //     return Err(Report::new(OsuBeatmapParseError::from(filename))
+                //         .attach_printable(format!("Invalid section {section_str:?}")));
+                // }
+            };
         }
-
-        match line.as_str() {
-            "[General]" => {
-                beatmap.general = Some(ctx!(
-                    parse_general_section(&mut reader),
-                    OsuBeatmapParseError::from(filename)
-                )?);
-            }
-            _ => break,
-        };
     }
 
     Ok(beatmap)
