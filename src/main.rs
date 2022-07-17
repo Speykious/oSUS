@@ -20,7 +20,7 @@ fn main() -> Result<(), OsuBeatmapParseError> {
 
     for path in args {
         match OsuBeatmapFile::parse(&path) {
-            Ok(beatmap) => println!("{beatmap:#?}"),
+            Ok(beatmap) => println!("Beatmap: {beatmap:#?}"),
             Err(err) => {
                 log::error!("\n{err:?}");
             },

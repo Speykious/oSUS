@@ -157,10 +157,11 @@ where
                     parse_general_section(&mut reader),
                     OsuBeatmapParseError::from(filename)
                 )?);
+
             }
             _ => break,
         };
     }
 
-    Err(Report::new(OsuBeatmapParseError::from(filename)).attach_printable("TODO"))
+    Ok(beatmap)
 }
