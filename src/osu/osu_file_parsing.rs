@@ -55,7 +55,7 @@ fn parse_general_section(
                 section.mode = section_ctx!(value.parse(), General)?;
             }
             "LetterboxInBreaks" => {
-                section.letterbox_in_breaks = section_ctx!(value.parse(), General)?;
+                section.letterbox_in_breaks = section_ctx!(value.parse::<u8>(), General)? != 0;
             }
             "StoryFireInFront" => {
                 section.story_fire_in_front = section_ctx!(value.parse::<u8>(), General)? != 0;
