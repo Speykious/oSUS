@@ -1,4 +1,4 @@
-use error_stack::{Report, Result};
+use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
 #[macro_export]
@@ -37,8 +37,9 @@ macro_rules! section_rctx {
 /// Section context with printable attached for specific field value parsing error.
 macro_rules! section_fvp_ctx {
     ($result:expr, $section:ident, $field:ident) => {
-        section_ctx!(($result), $section)
-            .attach_printable_lazy(|| format!("Could not parse value for {} field", stringify!($field)))
+        section_ctx!(($result), $section).attach_printable_lazy(|| {
+            format!("Could not parse value for {} field", stringify!($field))
+        })
     };
 }
 
@@ -64,17 +65,49 @@ impl From<&str> for InvalidKeyValuePairError {
     }
 }
 
+#[derive(Clone, Debug, Error)]
+#[error("Invalid list of integers (line: {line:?})")]
+pub struct InvalidIntListError {
+    pub line: String,
+}
+
+impl From<&str> for InvalidIntListError {
+    fn from(line: &str) -> Self {
+        Self {
+            line: line.to_owned(),
+        }
+    }
+}
+
 /// Parse a `field:value` pair (arbitrary spaces allowed).
 pub fn parse_field_value_pair(line: &str) -> Result<(String, String), InvalidKeyValuePairError> {
-    let (field, value) = line.split_once(':').ok_or(
+    let (field, value) = line.split_once(':').ok_or_else(|| {
         Report::new(InvalidKeyValuePairError::from(line))
-            .attach_printable("Could not split with ':'"),
-    )?;
+            .attach_printable("Could not split with ':'")
+    })?;
 
     let field = field.trim().to_owned();
     let value = value.trim().to_owned();
 
     Ok((field, value))
+}
+
+pub fn parse_ints(line: &str) -> Result<Vec<i32>, InvalidIntListError> {
+    let mut ints = Vec::new();
+    for value in line.split(',') {
+        if value.is_empty() {
+            continue;
+        }
+
+        ints.push(
+            value
+                .parse::<i32>()
+                .report()
+                .change_context_lazy(|| InvalidIntListError::from(line))?,
+        );
+    }
+
+    Ok(ints)
 }
 
 pub fn to_standardized_path(path: &str) -> String {

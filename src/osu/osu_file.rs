@@ -139,7 +139,7 @@ pub struct EditorSection {
     /// Grid size
     pub grid_size: i32,
     /// Scale factor for the object timeline
-    pub timeline_zoom: f64,
+    pub timeline_zoom: Option<f64>,
 }
 
 /// Information used to identify the beatmap

@@ -6,9 +6,9 @@ use std::path::Path;
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
-use crate::utils::{parse_field_value_pair, to_standardized_path};
+use crate::utils::{parse_field_value_pair, parse_ints, to_standardized_path};
 
-use super::osu_file::{GeneralSection, OsuBeatmapFile};
+use super::osu_file::{EditorSection, GeneralSection, OsuBeatmapFile};
 
 #[derive(Clone, Debug, Error)]
 #[error("Couldn't parse section [{section:?}]")]
@@ -103,10 +103,7 @@ fn parse_general_section(
                         section_fvp_rctx!(value.parse::<u8>(), General, SamplesMatchPlaybackRate)?
                             != 0;
                 }
-                key => {
-                    return Err(Report::new(SectionParseError::from("General"))
-                        .attach_printable(format!("Unknown field {key:?}")));
-                }
+                key => log::warn!("[General] section: unknown field {key:?}"),
             }
         } else {
             // We stop once we encounter an EOL character
@@ -116,6 +113,69 @@ fn parse_general_section(
     }
 
     Ok(section)
+}
+
+/// Parse a `[Editor]` section
+fn parse_editor_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<EditorSection, SectionParseError> {
+    let mut bookmarks: Vec<i32> = Vec::new();
+    let mut distance_spacing: Option<f64> = None;
+    let mut beat_divisor: Option<f64> = None;
+    let mut grid_size: Option<i32> = None;
+    let mut timeline_zoom: Option<f64> = None;
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, Editor)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let (field, value) = section_ctx!(parse_field_value_pair(&line), Editor)?;
+
+            match field.as_str() {
+                "Bookmarks" => bookmarks = section_fvp_ctx!(parse_ints(&value), Editor, Bookmarks)?,
+                "DistanceSpacing" => {
+                    distance_spacing =
+                        Some(section_fvp_rctx!(value.parse(), Editor, DistanceSpacing)?)
+                }
+                "BeatDivisor" => {
+                    beat_divisor = Some(section_fvp_rctx!(value.parse(), Editor, BeatDivisor)?)
+                }
+                "GridSize" => grid_size = Some(section_fvp_rctx!(value.parse(), Editor, GridSize)?),
+                "TimelineZoom" => {
+                    timeline_zoom = Some(section_fvp_rctx!(value.parse(), Editor, TimelineZoom)?)
+                }
+                key => log::warn!("[Editor] section: unknown field {key:?}"),
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(EditorSection {
+        bookmarks,
+        distance_spacing: distance_spacing.ok_or_else(|| {
+            Report::new(SectionParseError::from("Editor"))
+                .attach_printable("DistanceSpacing field wasn't specified")
+        })?,
+        beat_divisor: beat_divisor.ok_or_else(|| {
+            Report::new(SectionParseError::from("Editor"))
+                .attach_printable("BeatDivisor field wasn't specified")
+        })?,
+        grid_size: grid_size.ok_or_else(|| {
+            Report::new(SectionParseError::from("Editor"))
+                .attach_printable("GridSize field wasn't specified")
+        })?,
+        timeline_zoom,
+    })
 }
 
 #[derive(Clone, Debug, Error)]
@@ -176,6 +236,12 @@ where
                 "[General]" => {
                     beatmap.general = Some(ctx!(
                         parse_general_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?);
+                }
+                "[Editor]" => {
+                    beatmap.editor = Some(ctx!(
+                        parse_editor_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?);
                 }
