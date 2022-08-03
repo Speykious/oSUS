@@ -2,4 +2,5 @@
 *.log
 
 # ignore beatmaps
+/maps
 *.osu
