@@ -2,6 +2,7 @@
 name = "osus"
 version = "0.1.0"
 edition = "2021"
+default-run = "osus"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,3 +11,7 @@ env_logger = "0.9.0"
 error-stack = "0.1.1"
 log = "0.4.17"
 thiserror = "1.0.31"
+walkdir = "2.3.2"
+
+[[bin]]
+name = "extract_lazer_osu_files"
