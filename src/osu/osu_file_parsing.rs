@@ -24,6 +24,20 @@ impl From<&str> for SectionParseError {
     }
 }
 
+#[derive(Clone, Debug, Error)]
+#[error("Field {field} unspecified")]
+pub struct UnspecifiedFieldError {
+    pub field: String,
+}
+
+impl From<&str> for UnspecifiedFieldError {
+    fn from(field: &str) -> Self {
+        Self {
+            field: field.to_owned(),
+        }
+    }
+}
+
 /// Parse a `[General]` section
 fn parse_general_section(
     reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
@@ -163,16 +177,16 @@ fn parse_editor_section(
     Ok(EditorSection {
         bookmarks,
         distance_spacing: distance_spacing.ok_or_else(|| {
-            Report::new(SectionParseError::from("Editor"))
-                .attach_printable("DistanceSpacing field wasn't specified")
+            Report::new(UnspecifiedFieldError::from("DistanceSpacing"))
+                .change_context(SectionParseError::from("Editor"))
         })?,
         beat_divisor: beat_divisor.ok_or_else(|| {
-            Report::new(SectionParseError::from("Editor"))
-                .attach_printable("BeatDivisor field wasn't specified")
+            Report::new(UnspecifiedFieldError::from("BeatDivisor"))
+                .change_context(SectionParseError::from("Editor"))
         })?,
         grid_size: grid_size.ok_or_else(|| {
-            Report::new(SectionParseError::from("Editor"))
-                .attach_printable("GridSize field wasn't specified")
+            Report::new(UnspecifiedFieldError::from("GridSize"))
+                .change_context(SectionParseError::from("Editor"))
         })?,
         timeline_zoom,
     })
