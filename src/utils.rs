@@ -66,12 +66,12 @@ impl From<&str> for InvalidKeyValuePairError {
 }
 
 #[derive(Clone, Debug, Error)]
-#[error("Invalid list of integers (line: {line:?})")]
-pub struct InvalidIntListError {
+#[error("Invalid list of floats (line: {line:?})")]
+pub struct InvalidFloatListError {
     pub line: String,
 }
 
-impl From<&str> for InvalidIntListError {
+impl From<&str> for InvalidFloatListError {
     fn from(line: &str) -> Self {
         Self {
             line: line.to_owned(),
@@ -92,7 +92,7 @@ pub fn parse_field_value_pair(line: &str) -> Result<(String, String), InvalidKey
     Ok((field, value))
 }
 
-pub fn parse_ints(line: &str) -> Result<Vec<i32>, InvalidIntListError> {
+pub fn parse_floats(line: &str) -> Result<Vec<f32>, InvalidFloatListError> {
     let mut ints = Vec::new();
     for value in line.split(',') {
         if value.is_empty() {
@@ -101,9 +101,9 @@ pub fn parse_ints(line: &str) -> Result<Vec<i32>, InvalidIntListError> {
 
         ints.push(
             value
-                .parse::<i32>()
+                .parse::<f32>()
                 .report()
-                .change_context_lazy(|| InvalidIntListError::from(line))?,
+                .change_context_lazy(|| InvalidFloatListError::from(line))?,
         );
     }
 

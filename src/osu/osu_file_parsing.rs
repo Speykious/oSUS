@@ -6,7 +6,7 @@ use std::path::Path;
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
-use crate::utils::{parse_field_value_pair, parse_ints, to_standardized_path};
+use crate::utils::{parse_field_value_pair, parse_floats, to_standardized_path};
 
 use super::osu_file::{EditorSection, GeneralSection, MetadataSection, OsuBeatmapFile};
 
@@ -134,7 +134,7 @@ fn parse_editor_section(
     reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<EditorSection, SectionParseError> {
-    let mut bookmarks: Vec<i32> = Vec::new();
+    let mut bookmarks: Vec<f32> = Vec::new();
     let mut distance_spacing: Option<f64> = None;
     let mut beat_divisor: Option<f64> = None;
     let mut grid_size: Option<i32> = None;
@@ -153,7 +153,7 @@ fn parse_editor_section(
             let (field, value) = section_ctx!(parse_field_value_pair(&line), Editor)?;
 
             match field.as_str() {
-                "Bookmarks" => bookmarks = section_fvp_ctx!(parse_ints(&value), Editor, Bookmarks)?,
+                "Bookmarks" => bookmarks = section_fvp_ctx!(parse_floats(&value), Editor, Bookmarks)?,
                 "DistanceSpacing" => {
                     distance_spacing =
                         Some(section_fvp_rctx!(value.parse(), Editor, DistanceSpacing)?)

@@ -131,7 +131,7 @@ impl Default for GeneralSection {
 #[derive(Clone, Debug)]
 pub struct EditorSection {
     /// Time in milliseconds of bookmarks
-    pub bookmarks: Vec<i32>,
+    pub bookmarks: Vec<f32>,
     /// Distance snap multiplier
     pub distance_spacing: f64,
     /// Beat snap divisor
