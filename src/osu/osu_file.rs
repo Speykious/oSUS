@@ -184,6 +184,19 @@ pub struct DifficultySection {
     pub slider_tick_rate: f32,
 }
 
+impl Default for DifficultySection {
+    fn default() -> Self {
+        Self {
+            hp_drain_rate: 0.,
+            circle_size: 0.,
+            overall_difficulty: 0.,
+            approach_rate: 0.,
+            slider_multiplier: 0.,
+            slider_tick_rate: 0.,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum EventParams {
     Background {

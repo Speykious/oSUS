@@ -2,13 +2,17 @@ use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::str::FromStr;
 
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
 use crate::utils::{parse_field_value_pair, parse_floats, to_standardized_path};
 
-use super::osu_file::{EditorSection, GeneralSection, MetadataSection, OsuBeatmapFile};
+use super::osu_file::{
+    DifficultySection, EditorSection, Event, EventParams, GeneralSection, MetadataSection,
+    OsuBeatmapFile,
+};
 
 #[derive(Clone, Debug, Error)]
 #[error("Couldn't parse section [{section:?}]")]
@@ -153,7 +157,9 @@ fn parse_editor_section(
             let (field, value) = section_ctx!(parse_field_value_pair(&line), Editor)?;
 
             match field.as_str() {
-                "Bookmarks" => bookmarks = section_fvp_ctx!(parse_floats(&value), Editor, Bookmarks)?,
+                "Bookmarks" => {
+                    bookmarks = section_fvp_ctx!(parse_floats(&value), Editor, Bookmarks)?
+                }
                 "DistanceSpacing" => {
                     distance_spacing =
                         Some(section_fvp_rctx!(value.parse(), Editor, DistanceSpacing)?)
@@ -201,7 +207,7 @@ fn parse_metadata_section(
 
     loop {
         if let Some(line) = reader.next() {
-            let line = section_ctx!(line, General)?;
+            let line = section_ctx!(line, Metadata)?;
 
             // We stop once we encounter a new section
             if line.starts_with('[') && line.ends_with(']') {
@@ -240,6 +246,203 @@ fn parse_metadata_section(
     Ok(section)
 }
 
+/// Parse a `[Difficulty]` section
+fn parse_difficulty_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<DifficultySection, SectionParseError> {
+    let mut section = DifficultySection::default();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, Difficulty)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let (field, value) = section_ctx!(parse_field_value_pair(&line), Difficulty)?;
+
+            match field.as_str() {
+                "HPDrainRate" => {
+                    section.hp_drain_rate =
+                        section_fvp_rctx!(value.parse(), Difficulty, HPDrainRate)?
+                }
+                "CircleSize" => {
+                    section.circle_size = section_fvp_rctx!(value.parse(), Difficulty, CircleSize)?
+                }
+                "OverallDifficulty" => {
+                    section.overall_difficulty =
+                        section_fvp_rctx!(value.parse(), Difficulty, OverallDifficulty)?
+                }
+                "ApproachRate" => {
+                    section.approach_rate =
+                        section_fvp_rctx!(value.parse(), Difficulty, ApproachRate)?
+                }
+                "SliderMultiplier" => {
+                    section.slider_multiplier =
+                        section_fvp_rctx!(value.parse(), Difficulty, SliderMultiplier)?
+                }
+                "SliderTickRate" => {
+                    section.slider_tick_rate =
+                        section_fvp_rctx!(value.parse(), Difficulty, SliderTickRate)?
+                }
+                key => log::warn!("[Difficulty] section: unknown field {key:?}"),
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(section)
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Could not parse event line ({event_line:?})")]
+pub struct EventParseError {
+    pub event_line: String,
+}
+
+impl From<&str> for EventParseError {
+    fn from(event_line: &str) -> Self {
+        Self {
+            event_line: event_line.to_owned(),
+        }
+    }
+}
+
+fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
+    let mut values = sal.split(',');
+    let event_type: String = values
+        .next()
+        .ok_or_else(|| {
+            Report::new(EventParseError::from(sal)).attach_printable(format!("Event is empty"))
+        })?
+        .trim()
+        .to_owned();
+
+    // Ignoring storyboard events
+    match event_type.as_str() {
+        "3" | "4" | "5" | "6" | "Sample" | "Sprite" | "Animation" | "F" | "M" | "MX" | "MY" | "S"
+        | "V" | "R" | "C" | "L" | "T" | "P" => {
+            log::info!("Ignoring storyboard event {sal:?}");
+            return Ok(None);
+        }
+        _ => (),
+    }
+
+    let start_time: f64 = {
+        let s = values.next().ok_or_else(|| {
+            Report::new(EventParseError::from(sal))
+                .attach_printable(format!("Event does not have a start time"))
+        })?;
+
+        section_rctx!(s.parse(), Events).change_context_lazy(|| EventParseError::from(sal))?
+    };
+
+    let params: EventParams = match event_type.as_str() {
+        "0" => {
+            let filename = values
+                .next()
+                .ok_or_else(|| {
+                    Report::new(EventParseError::from(sal))
+                        .attach_printable(format!("Background event does not have a filename"))
+                })?
+                .to_owned();
+
+            let x_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
+                .change_context_lazy(|| EventParseError::from(sal))?;
+
+            let y_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
+                .change_context_lazy(|| EventParseError::from(sal))?;
+
+            EventParams::Background {
+                filename,
+                x_offset,
+                y_offset,
+            }
+        }
+        "1" | "Video" => {
+            let filename = values
+                .next()
+                .ok_or_else(|| {
+                    Report::new(EventParseError::from(sal))
+                        .attach_printable(format!("Video event does not have a filename"))
+                })?
+                .to_owned();
+
+            let x_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
+                .change_context_lazy(|| EventParseError::from(sal))?;
+
+            let y_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
+                .change_context_lazy(|| EventParseError::from(sal))?;
+
+            EventParams::Video {
+                filename,
+                x_offset,
+                y_offset,
+            }
+        }
+        "2" | "Break" => {
+            let end_time: f64 = {
+                let s = values.next().ok_or_else(|| {
+                    Report::new(EventParseError::from(sal))
+                        .attach_printable(format!("Break event does not have an end time"))
+                })?;
+
+                section_rctx!(s.parse(), Events)
+                    .change_context_lazy(|| EventParseError::from(sal))?
+            };
+
+            EventParams::Break { end_time }
+        }
+        t => {
+            return Err(Report::new(EventParseError::from(sal))
+                .attach_printable(format!("Unknown event type: {t:?}")));
+        }
+    };
+
+    Ok(Some(Event {
+        event_type,
+        start_time,
+        params,
+    }))
+}
+
+/// Parse a `[Events]` section
+fn parse_events_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<Vec<Event>, SectionParseError> {
+    let mut events: Vec<Event> = Vec::new();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, Events)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            if let Some(event) = section_ctx!(parse_event(&line), Event)? {
+                events.push(event);
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(events)
+}
+
 #[derive(Clone, Debug, Error)]
 #[error("Could not parse osu! beatmap file ({filename:?})")]
 pub struct OsuBeatmapParseError {
@@ -267,7 +470,11 @@ where
         .lines()
         .map(|line| rctx!(line, OsuBeatmapParseError::from(filename)))
         .filter(|line| match line {
-            Ok(line) => !line.trim().is_empty(),
+            Ok(line) => {
+                let l = line.trim();
+                // Ignore comments and empty lines
+                !l.is_empty() && !l.starts_with("//")
+            }
             Err(_) => true,
         });
 
@@ -312,6 +519,18 @@ where
                         parse_metadata_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?);
+                }
+                "[Difficulty]" => {
+                    beatmap.difficulty = Some(ctx!(
+                        parse_difficulty_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?);
+                }
+                "[Events]" => {
+                    beatmap.events = ctx!(
+                        parse_events_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?;
                 }
                 _ => section_header = None,
                 // section_str => {
