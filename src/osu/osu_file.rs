@@ -143,7 +143,7 @@ pub struct EditorSection {
 }
 
 /// Information used to identify the beatmap
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MetadataSection {
     /// Romanised song title
     pub title: String,
@@ -162,9 +162,9 @@ pub struct MetadataSection {
     /// Search terms
     pub tags: Vec<String>,
     /// Difficulty ID
-    pub beatmap_id: u32,
+    pub beatmap_id: Option<i32>,
     /// Beatmap ID
-    pub beatmap_set_id: u32,
+    pub beatmap_set_id: Option<i32>,
 }
 
 /// Difficulty settings

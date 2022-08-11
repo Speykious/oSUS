@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use crate::utils::{parse_field_value_pair, parse_ints, to_standardized_path};
 
-use super::osu_file::{EditorSection, GeneralSection, OsuBeatmapFile};
+use super::osu_file::{EditorSection, GeneralSection, MetadataSection, OsuBeatmapFile};
 
 #[derive(Clone, Debug, Error)]
 #[error("Couldn't parse section [{section:?}]")]
@@ -192,6 +192,54 @@ fn parse_editor_section(
     })
 }
 
+/// Parse a `[Metadata]` section
+fn parse_metadata_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<MetadataSection, SectionParseError> {
+    let mut section = MetadataSection::default();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, General)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let (field, value) = section_ctx!(parse_field_value_pair(&line), Metadata)?;
+
+            match field.as_str() {
+                "Title" => section.title = value,
+                "TitleUnicode" => section.title_unicode = value,
+                "Artist" => section.artist = value,
+                "ArtistUnicode" => section.artist_unicode = value,
+                "Creator" => section.creator = value,
+                "Version" => section.version = value,
+                "Source" => section.source = value,
+                "Tags" => section.tags = value.split(' ').map(|s| s.to_owned()).collect(),
+                "BeatmapID" => {
+                    section.beatmap_id =
+                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapID)?)
+                }
+                "BeatmapSetID" => {
+                    section.beatmap_set_id =
+                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapSetID)?)
+                }
+                key => log::warn!("[Metadata] section: unknown field {key:?}"),
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(section)
+}
+
 #[derive(Clone, Debug, Error)]
 #[error("Could not parse osu! beatmap file ({filename:?})")]
 pub struct OsuBeatmapParseError {
@@ -256,6 +304,12 @@ where
                 "[Editor]" => {
                     beatmap.editor = Some(ctx!(
                         parse_editor_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?);
+                }
+                "[Metadata]" => {
+                    beatmap.metadata = Some(ctx!(
+                        parse_metadata_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?);
                 }
