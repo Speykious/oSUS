@@ -2,7 +2,6 @@ use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::str::FromStr;
 
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
