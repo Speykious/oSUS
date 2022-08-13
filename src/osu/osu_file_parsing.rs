@@ -10,7 +10,7 @@ use crate::utils::{parse_field_value_pair, parse_floats, to_standardized_path};
 
 use super::osu_file::{
     DifficultySection, EditorSection, Event, EventParams, GeneralSection, MetadataSection,
-    OsuBeatmapFile, Timestamp, TimingPoint,
+    OsuBeatmapFile, TimingPoint,
 };
 
 #[derive(Clone, Debug, Error)]
@@ -458,53 +458,69 @@ impl From<&str> for TimingPointParseError {
 
 fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> {
     let values: Vec<_> = line.split(',').collect();
-    if values.len() != 8 {
-        return Err(Report::new(TimingPointParseError::from(line)));
+
+    if values.len() < 2 {
+        return Err(Report::new(TimingPointParseError::from(line))
+            .attach_printable(format!("Expected at least 2 values, got {}", values.len())));
+    }
+    if values.len() > 8 {
+        return Err(Report::new(TimingPointParseError::from(line))
+            .attach_printable(format!("Expected at most 8 values, got {}", values.len())));
     }
 
-    let time: Timestamp = values[0]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let beat_length: f64 = values[1]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let meter: u32 = values[2]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let sample_set: u8 = values[3]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let sample_index: u8 = values[4]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let volume: u8 = values[5]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
-    let uninherited: bool = values[6]
-        .parse::<u8>()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))? != 0;
-    let effects: u32 = values[7]
-        .parse()
-        .report()
-        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let mut timing_point = TimingPoint::default();
+    let mut values = values.into_iter();
 
-    Ok(TimingPoint {
-        time,
-        beat_length,
-        meter,
-        sample_set,
-        sample_index,
-        volume,
-        uninherited,
-        effects,
-    })
+    if let Some(time) = values.next() {
+        timing_point.time = time
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(beat_length) = values.next() {
+        timing_point.beat_length = beat_length
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(meter) = values.next() {
+        timing_point.meter = meter
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(sample_set) = values.next() {
+        timing_point.sample_set = sample_set
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(sample_index) = values.next() {
+        timing_point.sample_index = sample_index
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(volume) = values.next() {
+        timing_point.volume = volume
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+    if let Some(uninherited) = values.next() {
+        timing_point.uninherited = uninherited
+            .parse::<u8>()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))? != 0;
+    };
+    if let Some(effects) = values.next() {
+        timing_point.effects = effects
+            .parse()
+            .report()
+            .change_context_lazy(|| TimingPointParseError::from(line))?;
+    };
+
+    Ok(timing_point)
 }
 
 /// Parse a `[TimingPoints]` section
