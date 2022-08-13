@@ -262,11 +262,13 @@ pub struct TimingPoint {
     ///   For example, `-50` would make all sliders in this timing section twice as fast as `slider_multiplier`.
     pub beat_length: f64,
     /// Amount of beats in a measure. Inherited timing points ignore this property.
-    pub meter: u32,
+    /// This number can be negative for some reason???
+    /// See beatmap https://osu.ppy.sh/beatmapsets/539221#osu/1265214
+    pub meter: i32,
     /// Default sample set for hit objects (0 = beatmap default, 1 = normal, 2 = soft, 3 = drum).
     pub sample_set: u8,
     /// Custom sample index for hit objects. `0` indicates osu!'s default hitsounds.
-    pub sample_index: u8,
+    pub sample_index: u32,
     /// Volume percentage for hit objects.
     pub volume: u8,
     /// Whether or not the timing point is uninherited.
