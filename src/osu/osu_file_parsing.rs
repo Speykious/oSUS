@@ -10,7 +10,7 @@ use crate::utils::{parse_field_value_pair, parse_floats, to_standardized_path};
 
 use super::osu_file::{
     DifficultySection, EditorSection, Event, EventParams, GeneralSection, MetadataSection,
-    OsuBeatmapFile,
+    OsuBeatmapFile, Timestamp, TimingPoint,
 };
 
 #[derive(Clone, Debug, Error)]
@@ -314,21 +314,21 @@ impl From<&str> for EventParseError {
     }
 }
 
-fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
-    let mut values = sal.split(',');
+fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
+    let mut values = line.split(',');
     let event_type: String = values
         .next()
         .ok_or_else(|| {
-            Report::new(EventParseError::from(sal)).attach_printable(format!("Event is empty"))
+            Report::new(EventParseError::from(line)).attach_printable(format!("Event is empty"))
         })?
         .trim()
         .to_owned();
 
     // Ignoring storyboard events
     match event_type.as_str() {
-        "3" | "4" | "5" | "6" | "Sample" | "Sprite" | "Animation" | "F" | "M" | "MX" | "MY" | "S"
-        | "V" | "R" | "C" | "L" | "T" | "P" => {
-            log::info!("Ignoring storyboard event {sal:?}");
+        "3" | "4" | "5" | "6" | "Sample" | "Sprite" | "Animation" | "F" | "M" | "MX" | "MY"
+        | "S" | "V" | "R" | "C" | "L" | "T" | "P" => {
+            log::info!("Ignoring storyboard event {:?}", line);
             return Ok(None);
         }
         _ => (),
@@ -336,11 +336,11 @@ fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
 
     let start_time: f64 = {
         let s = values.next().ok_or_else(|| {
-            Report::new(EventParseError::from(sal))
+            Report::new(EventParseError::from(line))
                 .attach_printable(format!("Event does not have a start time"))
         })?;
 
-        section_rctx!(s.parse(), Events).change_context_lazy(|| EventParseError::from(sal))?
+        section_rctx!(s.parse(), Events).change_context_lazy(|| EventParseError::from(line))?
     };
 
     let params: EventParams = match event_type.as_str() {
@@ -348,16 +348,16 @@ fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
             let filename = values
                 .next()
                 .ok_or_else(|| {
-                    Report::new(EventParseError::from(sal))
+                    Report::new(EventParseError::from(line))
                         .attach_printable(format!("Background event does not have a filename"))
                 })?
                 .to_owned();
 
             let x_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
-                .change_context_lazy(|| EventParseError::from(sal))?;
+                .change_context_lazy(|| EventParseError::from(line))?;
 
             let y_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
-                .change_context_lazy(|| EventParseError::from(sal))?;
+                .change_context_lazy(|| EventParseError::from(line))?;
 
             EventParams::Background {
                 filename,
@@ -369,16 +369,16 @@ fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
             let filename = values
                 .next()
                 .ok_or_else(|| {
-                    Report::new(EventParseError::from(sal))
+                    Report::new(EventParseError::from(line))
                         .attach_printable(format!("Video event does not have a filename"))
                 })?
                 .to_owned();
 
             let x_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
-                .change_context_lazy(|| EventParseError::from(sal))?;
+                .change_context_lazy(|| EventParseError::from(line))?;
 
             let y_offset: i32 = section_rctx!(values.next().unwrap_or("0").parse(), Events)
-                .change_context_lazy(|| EventParseError::from(sal))?;
+                .change_context_lazy(|| EventParseError::from(line))?;
 
             EventParams::Video {
                 filename,
@@ -389,18 +389,18 @@ fn parse_event(sal: &str) -> Result<Option<Event>, EventParseError> {
         "2" | "Break" => {
             let end_time: f64 = {
                 let s = values.next().ok_or_else(|| {
-                    Report::new(EventParseError::from(sal))
+                    Report::new(EventParseError::from(line))
                         .attach_printable(format!("Break event does not have an end time"))
                 })?;
 
                 section_rctx!(s.parse(), Events)
-                    .change_context_lazy(|| EventParseError::from(sal))?
+                    .change_context_lazy(|| EventParseError::from(line))?
             };
 
             EventParams::Break { end_time }
         }
         t => {
-            return Err(Report::new(EventParseError::from(sal))
+            return Err(Report::new(EventParseError::from(line))
                 .attach_printable(format!("Unknown event type: {t:?}")));
         }
     };
@@ -440,6 +440,100 @@ fn parse_events_section(
     }
 
     Ok(events)
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Could not parse timing point ({timing_point_line:?})")]
+pub struct TimingPointParseError {
+    pub timing_point_line: String,
+}
+
+impl From<&str> for TimingPointParseError {
+    fn from(timing_point_line: &str) -> Self {
+        Self {
+            timing_point_line: timing_point_line.to_owned(),
+        }
+    }
+}
+
+fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> {
+    let values: Vec<_> = line.split(',').collect();
+    if values.len() != 8 {
+        return Err(Report::new(TimingPointParseError::from(line)));
+    }
+
+    let time: Timestamp = values[0]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let beat_length: f64 = values[1]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let meter: u32 = values[2]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let sample_set: u8 = values[3]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let sample_index: u8 = values[4]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let volume: u8 = values[5]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+    let uninherited: bool = values[6]
+        .parse::<u8>()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))? != 0;
+    let effects: u32 = values[7]
+        .parse()
+        .report()
+        .change_context_lazy(|| TimingPointParseError::from(line))?;
+
+    Ok(TimingPoint {
+        time,
+        beat_length,
+        meter,
+        sample_set,
+        sample_index,
+        volume,
+        uninherited,
+        effects,
+    })
+}
+
+/// Parse a `[TimingPoints]` section
+fn parse_timing_points_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<Vec<TimingPoint>, SectionParseError> {
+    let mut timing_points: Vec<TimingPoint> = Vec::new();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, TimingPoints)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let timing_point = section_ctx!(parse_timing_point(&line), TimingPoints)?;
+            timing_points.push(timing_point);
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(timing_points)
 }
 
 #[derive(Clone, Debug, Error)]
@@ -528,6 +622,12 @@ where
                 "[Events]" => {
                     beatmap.events = ctx!(
                         parse_events_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?;
+                }
+                "[TimingPoints]" => {
+                    beatmap.timing_points = ctx!(
+                        parse_timing_points_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?;
                 }
