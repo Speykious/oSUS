@@ -12,7 +12,7 @@ mod osu;
 fn main() -> Result<(), OsuBeatmapParseError> {
     env_logger::init();
 
-    let mut args = env::args().into_iter();
+    let mut args = env::args();
     let program = args.next().expect("Excuse me wtf");
     if args.len() == 0 {
         println!("Usage: {program} <osu! beatmap files ...>");

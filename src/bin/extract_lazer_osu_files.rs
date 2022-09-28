@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 fn main() -> io::Result<()> {
     env_logger::init();
 
-    let mut args = env::args().into_iter();
+    let mut args = env::args();
     let program = args.next().expect("Excuse me wtf");
     if args.len() == 0 {
         println!("Usage: {program} <osu!lazer 'files' folder or other ...>");
