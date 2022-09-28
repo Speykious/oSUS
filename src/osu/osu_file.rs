@@ -417,6 +417,37 @@ pub struct HitObject {
     pub hit_sample: HitSample,
 }
 
+impl HitObject {
+    /// Position of the bit that signifies whether a hit object is a hit circle in its `type` bit flags.
+    pub const TYPE_HIT_CIRCLE: u8 = 0;
+    /// Position of the bit that signifies whether a hit object is a slider in its `type` bit flags.
+    pub const TYPE_SLIDER: u8 = 1;
+    /// Position of the bit that signifies whether a hit object is a spinner in its `type` bit flags.
+    pub const TYPE_SPINNER: u8 = 3;
+    /// Position of the bit that signifies whether a hit object is an osu!mania hold in its `type` bit flags.
+    pub const TYPE_OSU_MANIA_HOLD: u8 = 7;
+
+    fn is_base_type(object_type: u8, base_type: u8) -> bool {
+        object_type & (1 << base_type) > 0
+    }
+
+    pub fn is_hit_circle(object_type: u8) -> bool {
+        Self::is_base_type(object_type, HitObject::TYPE_HIT_CIRCLE)
+    }
+
+    pub fn is_slider(object_type: u8) -> bool {
+        Self::is_base_type(object_type, HitObject::TYPE_SLIDER)
+    }
+
+    pub fn is_spinner(object_type: u8) -> bool {
+        Self::is_base_type(object_type, HitObject::TYPE_SPINNER)
+    }
+
+    pub fn is_osu_mania_hold(object_type: u8) -> bool {
+        Self::is_base_type(object_type, HitObject::TYPE_OSU_MANIA_HOLD)
+    }
+}
+
 /// `.osu` is a human-readable file format containing information about a beatmap.
 #[derive(Clone, Debug, Default)]
 pub struct OsuBeatmapFile {
