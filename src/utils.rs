@@ -1,3 +1,7 @@
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::str::FromStr;
+
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
@@ -66,15 +70,19 @@ impl From<&str> for InvalidKeyValuePairError {
 }
 
 #[derive(Clone, Debug, Error)]
-#[error("Invalid list of floats (line: {line:?})")]
-pub struct InvalidFloatListError {
+#[error("Invalid list of {type_name} (line: {line:?})")]
+pub struct InvalidListError<T> {
+    type_name: &'static str,
     pub line: String,
+    _phantom_data: PhantomData<T>,
 }
 
-impl From<&str> for InvalidFloatListError {
+impl<T> From<&str> for InvalidListError<T> {
     fn from(line: &str) -> Self {
         Self {
+            type_name: std::any::type_name::<T>(),
             line: line.to_owned(),
+            _phantom_data: PhantomData::<T>,
         }
     }
 }
@@ -92,22 +100,26 @@ pub fn parse_field_value_pair(line: &str) -> Result<(String, String), InvalidKey
     Ok((field, value))
 }
 
-pub fn parse_floats(line: &str) -> Result<Vec<f32>, InvalidFloatListError> {
-    let mut ints = Vec::new();
+pub fn parse_list_of<T, E>(line: &str) -> Result<Vec<T>, InvalidListError<T>>
+where
+    T: Debug + FromStr<Err = E> + Send + Sync + 'static,
+    std::result::Result<T, E>: IntoReport<Ok = T, Err = E>,
+{
+    let mut tobjs = Vec::new();
     for value in line.split(',') {
         if value.is_empty() {
             continue;
         }
 
-        ints.push(
+        tobjs.push(
             value
-                .parse::<f32>()
+                .parse::<T>()
                 .report()
-                .change_context_lazy(|| InvalidFloatListError::from(line))?,
+                .change_context_lazy(|| InvalidListError::from(line))?,
         );
     }
 
-    Ok(ints)
+    Ok(tobjs)
 }
 
 pub fn to_standardized_path(path: &str) -> String {

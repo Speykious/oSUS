@@ -6,7 +6,7 @@ use std::path::Path;
 use error_stack::{IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
-use crate::utils::{parse_field_value_pair, parse_floats, to_standardized_path};
+use crate::utils::{parse_field_value_pair, parse_list_of, to_standardized_path};
 
 use super::osu_file::{
     DifficultySection, EditorSection, Event, EventParams, GeneralSection, MetadataSection,
@@ -157,7 +157,7 @@ fn parse_editor_section(
 
             match field.as_str() {
                 "Bookmarks" => {
-                    bookmarks = section_fvp_ctx!(parse_floats(&value), Editor, Bookmarks)?
+                    bookmarks = section_fvp_ctx!(parse_list_of(&value), Editor, Bookmarks)?
                 }
                 "DistanceSpacing" => {
                     distance_spacing =
