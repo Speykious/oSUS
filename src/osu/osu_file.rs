@@ -277,7 +277,7 @@ pub struct TimingPoint {
     pub effects: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Color {
     /// Red value in range `[0, 255]`.
     pub r: u8,
@@ -290,7 +290,7 @@ pub struct Color {
 }
 
 /// Combo and skin colors
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ColorsSection {
     /// Additive combo colors
     pub combo_colors: Vec<Color>,

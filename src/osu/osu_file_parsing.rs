@@ -554,6 +554,79 @@ fn parse_timing_points_section(
 }
 
 #[derive(Clone, Debug, Error)]
+#[error("Could not parse '{color:?}' into a color")]
+pub struct ColorParseError {
+    pub color: String,
+}
+
+impl From<&str> for ColorParseError {
+    fn from(event_line: &str) -> Self {
+        Self {
+            color: event_line.to_owned(),
+        }
+    }
+}
+
+fn parse_color(line: String) -> Result<Color, ColorParseError> {
+    let nums = parse_list_of(&line).change_context_lazy(|| ColorParseError::from(line.as_str()))?;
+    if let [r, g, b] = nums[..] {
+        Ok(Color { r, g, b, a: None })
+    } else if let [r, g, b, a] = nums[..] {
+        Ok(Color {
+            r,
+            g,
+            b,
+            a: Some(a),
+        })
+    } else {
+        Err(Report::from(ColorParseError::from(line.as_str()))
+            .attach_printable("Expected 3 or 4 numbers between 0 ad 255"))
+    }
+}
+
+fn parse_colors_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<ColorsSection, SectionParseError> {
+    let mut colors_section: ColorsSection = ColorsSection::default();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, Colours)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let (field, value) = section_ctx!(parse_field_value_pair(&line), Colours)?;
+            let value = section_ctx!(parse_color(value), Colours)?;
+
+            if field.starts_with("Combo") {
+                // NOTE: This doesn't take into account the actual written index of the combo color.
+                colors_section.combo_colors.push(value);
+            }
+
+            match field.as_str() {
+                "SliderTrackOverride" => colors_section.slider_track_override = value,
+                "SliderBorder" => colors_section.slider_border = value,
+                field => {
+                    return Err(Report::new(SectionParseError::from("Colours"))
+                        .attach_printable(format!("Unknown color field: {field:?}")));
+                }
+            }
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(colors_section)
+}
+
+#[derive(Clone, Debug, Error)]
 #[error("Could not parse osu! beatmap file ({filename:?})")]
 pub struct OsuBeatmapParseError {
     pub filename: OsString,
@@ -648,6 +721,12 @@ where
                         parse_timing_points_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?;
+                }
+                "[Colours]" => {
+                    beatmap.colors = Some(ctx!(
+                        parse_colors_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?);
                 }
                 _ => section_header = None,
                 // section_str => {
