@@ -319,7 +319,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
     let event_type: String = values
         .next()
         .ok_or_else(|| {
-            Report::new(EventParseError::from(line)).attach_printable(format!("Event is empty"))
+            Report::new(EventParseError::from(line)).attach_printable("Event is empty".to_owned())
         })?
         .trim()
         .to_owned();
@@ -337,7 +337,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
     let start_time: f64 = {
         let s = values.next().ok_or_else(|| {
             Report::new(EventParseError::from(line))
-                .attach_printable(format!("Event does not have a start time"))
+                .attach_printable("Event does not have a start time".to_owned())
         })?;
 
         section_rctx!(s.parse(), Events).change_context_lazy(|| EventParseError::from(line))?
@@ -349,7 +349,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
                 .next()
                 .ok_or_else(|| {
                     Report::new(EventParseError::from(line))
-                        .attach_printable(format!("Background event does not have a filename"))
+                        .attach_printable("Background event does not have a filename".to_owned())
                 })?
                 .to_owned();
 
@@ -370,7 +370,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
                 .next()
                 .ok_or_else(|| {
                     Report::new(EventParseError::from(line))
-                        .attach_printable(format!("Video event does not have a filename"))
+                        .attach_printable("Video event does not have a filename".to_owned())
                 })?
                 .to_owned();
 
@@ -390,7 +390,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
             let end_time: f64 = {
                 let s = values.next().ok_or_else(|| {
                     Report::new(EventParseError::from(line))
-                        .attach_printable(format!("Break event does not have an end time"))
+                        .attach_printable("Break event does not have an end time".to_owned())
                 })?;
 
                 section_rctx!(s.parse(), Events)
@@ -511,7 +511,8 @@ fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> 
         timing_point.uninherited = uninherited
             .parse::<u8>()
             .report()
-            .change_context_lazy(|| TimingPointParseError::from(line))? != 0;
+            .change_context_lazy(|| TimingPointParseError::from(line))?
+            != 0;
     };
     if let Some(effects) = values.next() {
         timing_point.effects = effects
@@ -588,14 +589,15 @@ where
         });
 
     let fformat_string = reader.next().ok_or_else(|| {
-        Report::new(OsuBeatmapParseError::from(filename)).attach_printable(format!("File is empty"))
+        Report::new(OsuBeatmapParseError::from(filename))
+            .attach_printable("File is empty".to_owned())
     })??;
 
     // Remove ZERO WIDTH NO-BREAK SPACE (\u{feff}).
     // It seems to appear on v128 file formats...
     // I have no idea why.
     let format_version = fformat_string
-        .trim_start_matches("\u{feff}")
+        .trim_start_matches('\u{feff}')
         .strip_prefix("osu file format v")
         .ok_or_else(|| {
             Report::new(OsuBeatmapParseError::from(filename)).attach_printable(format!(
