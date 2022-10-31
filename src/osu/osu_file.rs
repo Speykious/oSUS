@@ -343,7 +343,7 @@ pub enum HitObjectParams {
         /// Anchor points used to construct the slider. Each point is in the format `x:y`.
         ///
         /// Note: the curve type is in this case individual to each point as Lazer allows
-        /// sliders to have multiple points of different curve types shile Stable doesn't.
+        /// sliders to have multiple points of different curve types while Stable doesn't.
         /// This also seems to be completely bacwards-compatible, so no information is lost.
         ///
         /// ## Example of slider curve points
