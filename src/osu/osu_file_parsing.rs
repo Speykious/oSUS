@@ -3,14 +3,17 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use error_stack::{IntoReport, Report, Result, ResultExt};
+use error_stack::{bail, IntoReport, Report, Result, ResultExt};
 use thiserror::Error;
 
-use crate::utils::{parse_field_value_pair, parse_list_of, to_standardized_path};
+use crate::utils::{
+    parse_field_value_pair, parse_list_of, parse_list_of_with_sep, to_standardized_path,
+};
 
 use super::osu_file::{
-    DifficultySection, EditorSection, Event, EventParams, GeneralSection, MetadataSection,
-    OsuBeatmapFile, TimingPoint,
+    Color, ColorsSection, DifficultySection, EditorSection, Event, EventParams, GeneralSection,
+    HitObject, HitObjectParams, HitSample, HitSampleSet, MetadataSection, OsuBeatmapFile,
+    SliderPoint, TimingPoint,
 };
 
 #[derive(Clone, Debug, Error)]
@@ -567,8 +570,8 @@ impl From<&str> for ColorParseError {
     }
 }
 
-fn parse_color(line: String) -> Result<Color, ColorParseError> {
-    let nums = parse_list_of(&line).change_context_lazy(|| ColorParseError::from(line.as_str()))?;
+fn parse_color(line: &str) -> Result<Color, ColorParseError> {
+    let nums = parse_list_of(line).change_context_lazy(|| ColorParseError::from(line))?;
     if let [r, g, b] = nums[..] {
         Ok(Color { r, g, b, a: None })
     } else if let [r, g, b, a] = nums[..] {
@@ -579,7 +582,7 @@ fn parse_color(line: String) -> Result<Color, ColorParseError> {
             a: Some(a),
         })
     } else {
-        Err(Report::from(ColorParseError::from(line.as_str()))
+        Err(Report::from(ColorParseError::from(line))
             .attach_printable("Expected 3 or 4 numbers between 0 ad 255"))
     }
 }
@@ -601,19 +604,19 @@ fn parse_colors_section(
             }
 
             let (field, value) = section_ctx!(parse_field_value_pair(&line), Colours)?;
-            let value = section_ctx!(parse_color(value), Colours)?;
+            let value = section_ctx!(parse_color(&value), Colours)?;
 
             if field.starts_with("Combo") {
                 // NOTE: This doesn't take into account the actual written index of the combo color.
                 colors_section.combo_colors.push(value);
-            }
-
-            match field.as_str() {
-                "SliderTrackOverride" => colors_section.slider_track_override = value,
-                "SliderBorder" => colors_section.slider_border = value,
-                field => {
-                    return Err(Report::new(SectionParseError::from("Colours"))
-                        .attach_printable(format!("Unknown color field: {field:?}")));
+            } else {
+                match field.as_str() {
+                    "SliderTrackOverride" => colors_section.slider_track_override = value,
+                    "SliderBorder" => colors_section.slider_border = value,
+                    field => {
+                        return Err(Report::new(SectionParseError::from("Colours"))
+                            .attach_printable(format!("Unknown color field: {field:?}")));
+                    }
                 }
             }
         } else {
@@ -624,6 +627,277 @@ fn parse_colors_section(
     }
 
     Ok(colors_section)
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Could not parse {line:?} into a hit-sample")]
+pub struct HitSampleParseError {
+    pub line: String,
+}
+
+impl From<&str> for HitSampleParseError {
+    fn from(line: &str) -> Self {
+        Self {
+            line: line.to_owned(),
+        }
+    }
+}
+
+fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
+    let args = line.split(':').collect::<Vec<_>>();
+    let hit_sample = if let [normal_set, addition_set, index, volume, filename] = &args[..] {
+        let normal_set = normal_set
+            .parse()
+            .report()
+            .change_context_lazy(|| HitSampleParseError::from(line))?;
+
+        let addition_set = addition_set
+            .parse()
+            .report()
+            .change_context_lazy(|| HitSampleParseError::from(line))?;
+
+        let index = index
+            .parse()
+            .report()
+            .change_context_lazy(|| HitSampleParseError::from(line))?;
+
+        let volume = volume
+            .parse()
+            .report()
+            .change_context_lazy(|| HitSampleParseError::from(line))?;
+
+        let filename = if filename.is_empty() {
+            None
+        } else {
+            Some(filename.to_owned().to_owned())
+        };
+
+        HitSample {
+            normal_set,
+            addition_set,
+            index,
+            volume,
+            filename,
+        }
+    } else {
+        bail!(
+            Report::from(HitSampleParseError::from(line)).attach_printable(format!(
+                "Expected at least 5 colon-separated arguments for the hit sample, got {}",
+                args.len()
+            ))
+        );
+    };
+
+    Ok(hit_sample)
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Could not parse {line:?} into a set of curve points")]
+pub struct CurvePointsParseError {
+    pub line: String,
+}
+
+impl From<&str> for CurvePointsParseError {
+    fn from(line: &str) -> Self {
+        Self {
+            line: line.to_owned(),
+        }
+    }
+}
+
+fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseError> {
+    // TODO: parse curve points
+    todo!();
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Could not parse {line:?} into a hit-object")]
+pub struct HitObjectParseError {
+    pub line: String,
+}
+
+impl From<&str> for HitObjectParseError {
+    fn from(line: &str) -> Self {
+        Self {
+            line: line.to_owned(),
+        }
+    }
+}
+
+fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
+    let args = line.split(',').collect::<Vec<_>>();
+    if let [x, y, time, object_type, hit_sound, object_params @ ..] = &args[..] {
+        let x = x
+            .parse()
+            .report()
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        let y = y
+            .parse()
+            .report()
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        let time = time
+            .parse()
+            .report()
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        let object_type = object_type
+            .parse()
+            .report()
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        let hit_sound = hit_sound
+            .parse()
+            .report()
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        let mut hit_sample_leftover: Option<&str> = None;
+
+        let object_params = {
+            if HitObject::is_hit_circle(object_type) {
+                if let [hit_sample] = object_params {
+                    hit_sample_leftover = Some(*hit_sample);
+                }
+
+                HitObjectParams::HitCircle
+            } else if HitObject::is_slider(object_type) {
+                if let [curve_points, slides, length, leftover @ ..] = object_params {
+                    let curve_points = parse_curve_points(curve_points)
+                        .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                    let slides = slides
+                        .parse()
+                        .report()
+                        .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                    let length = length
+                        .parse()
+                        .report()
+                        .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                    let mut edge_hitsounds = Vec::new();
+                    let mut edge_samplesets = Vec::new();
+                    if let [ehitsounds, esamplesets, hit_sample] = leftover {
+                        edge_hitsounds = parse_list_of_with_sep::<u8, _>(ehitsounds, '|')
+                            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                        edge_samplesets =
+                            parse_list_of_with_sep::<HitSampleSet, _>(esamplesets, '|')
+                                .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                        hit_sample_leftover = Some(*hit_sample);
+                    }
+
+                    HitObjectParams::Slider {
+                        curve_points,
+                        slides,
+                        length,
+                        edge_hitsounds,
+                        edge_samplesets,
+                    }
+                } else {
+                    bail!(
+                        Report::new(HitObjectParseError::from(line)).attach_printable(format!(
+                            "Expected at least 3 object parameters for slider, got {}",
+                            object_params.len()
+                        ))
+                    );
+                }
+            } else if HitObject::is_spinner(object_type) {
+                if let [end_time, leftover @ ..] = object_params {
+                    let end_time = end_time
+                        .parse()
+                        .report()
+                        .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                    if let [hit_sample] = leftover {
+                        hit_sample_leftover = Some(*hit_sample);
+                    }
+
+                    HitObjectParams::Spinner { end_time }
+                } else {
+                    bail!(
+                        Report::new(HitObjectParseError::from(line)).attach_printable(format!(
+                            "Expected 1 object parameter for spinner, got {}",
+                            object_params.len()
+                        ))
+                    );
+                }
+            } else if HitObject::is_osu_mania_hold(object_type) {
+                if let [end_time, leftover @ ..] = object_params {
+                    let end_time = end_time
+                        .parse()
+                        .report()
+                        .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+                    if let [hit_sample] = leftover {
+                        hit_sample_leftover = Some(*hit_sample);
+                    }
+
+                    HitObjectParams::Hold { end_time }
+                } else {
+                    bail!(
+                        Report::new(HitObjectParseError::from(line)).attach_printable(format!(
+                            "Expected 1 object parameter for hold, got {}",
+                            object_params.len()
+                        ))
+                    );
+                }
+            } else {
+                bail!(Report::new(HitObjectParseError::from(line))
+                    .attach_printable(format!("Unknown hit object type: {object_type:?}")));
+            }
+        };
+
+        let hit_sample = parse_hit_sample(hit_sample_leftover.unwrap_or_default())
+            .change_context_lazy(|| HitObjectParseError::from(line))?;
+
+        Ok(HitObject {
+            x,
+            y,
+            time,
+            object_type,
+            hit_sound,
+            object_params,
+            hit_sample,
+        })
+    } else {
+        Err(
+            Report::from(HitObjectParseError::from(line)).attach_printable(format!(
+                "Expected at least 7 comma-separated arguments for the hit object, got {}",
+                args.len()
+            )),
+        )
+    }
+}
+
+fn parse_hit_objects_section(
+    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    section_header: &mut Option<String>,
+) -> Result<Vec<HitObject>, SectionParseError> {
+    let mut hit_objects: Vec<HitObject> = Vec::new();
+
+    loop {
+        if let Some(line) = reader.next() {
+            let line = section_ctx!(line, HitObjects)?;
+
+            // We stop once we encounter a new section
+            if line.starts_with('[') && line.ends_with(']') {
+                *section_header = Some(line);
+                break;
+            }
+
+            let hit_object = section_ctx!(parse_hit_object(&line), HitObjects)?;
+            hit_objects.push(hit_object);
+        } else {
+            // We stop once we encounter an EOL character
+            *section_header = None;
+            break;
+        }
+    }
+
+    Ok(hit_objects)
 }
 
 #[derive(Clone, Debug, Error)]
@@ -727,6 +1001,12 @@ where
                         parse_colors_section(&mut reader, &mut section_header),
                         OsuBeatmapParseError::from(filename)
                     )?);
+                }
+                "[HitObjects]" => {
+                    beatmap.hit_objects = ctx!(
+                        parse_hit_objects_section(&mut reader, &mut section_header),
+                        OsuBeatmapParseError::from(filename)
+                    )?;
                 }
                 _ => section_header = None,
                 // section_str => {

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::num::ParseIntError;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -306,6 +307,53 @@ pub struct HitSampleSet {
     pub normal_set: u8,
     /// Sample set of the whistle, finish, and clap sounds.
     pub addition_set: u8,
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Invalid hitsample set: {hss_string:?}; {context}")]
+pub struct InvalidHitSampleSetError {
+    pub hss_string: String,
+    pub context: String,
+}
+
+impl From<&str> for InvalidHitSampleSetError {
+    fn from(op_str: &str) -> Self {
+        Self {
+            hss_string: op_str.to_owned(),
+            context: "expected string of the format \"u8:u8\"".to_owned(),
+        }
+    }
+}
+
+impl FromStr for HitSampleSet {
+    type Err = InvalidHitSampleSetError;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        let (normal_set, addition_set) = s
+            .split_once(':')
+            .ok_or_else(|| InvalidHitSampleSetError::from(s))?;
+
+        let normal_set =
+            normal_set
+                .parse()
+                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+                    hss_string: s.to_owned(),
+                    context: format!("couldn't parse normal_set: {}", e),
+                })?;
+
+        let addition_set =
+            addition_set
+                .parse()
+                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+                    hss_string: s.to_owned(),
+                    context: format!("couldn't parse addition_set: {}", e),
+                })?;
+
+        Ok(HitSampleSet {
+            normal_set,
+            addition_set,
+        })
+    }
 }
 
 /// Type of curve used to construct a slider at a particular point.

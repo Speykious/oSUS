@@ -100,13 +100,13 @@ pub fn parse_field_value_pair(line: &str) -> Result<(String, String), InvalidKey
     Ok((field, value))
 }
 
-pub fn parse_list_of<T, E>(line: &str) -> Result<Vec<T>, InvalidListError<T>>
+pub fn parse_list_of_with_sep<T, E>(line: &str, sep: char) -> Result<Vec<T>, InvalidListError<T>>
 where
     T: Debug + FromStr<Err = E> + Send + Sync + 'static,
     std::result::Result<T, E>: IntoReport<Ok = T, Err = E>,
 {
     let mut tobjs = Vec::new();
-    for value in line.split(',') {
+    for value in line.split(sep) {
         if value.is_empty() {
             continue;
         }
@@ -120,6 +120,14 @@ where
     }
 
     Ok(tobjs)
+}
+
+pub fn parse_list_of<T, E>(line: &str) -> Result<Vec<T>, InvalidListError<T>>
+where
+    T: Debug + FromStr<Err = E> + Send + Sync + 'static,
+    std::result::Result<T, E>: IntoReport<Ok = T, Err = E>,
+{
+    parse_list_of_with_sep(line, ',')
 }
 
 pub fn to_standardized_path(path: &str) -> String {
