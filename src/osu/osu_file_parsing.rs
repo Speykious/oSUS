@@ -645,7 +645,7 @@ impl From<&str> for HitSampleParseError {
 
 fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
     let args = line.split(':').collect::<Vec<_>>();
-    let hit_sample = if let [normal_set, addition_set, index, volume, filename] = &args[..] {
+    let hit_sample = if let [normal_set, addition_set, leftover @ ..] = &args[..] {
         let normal_set = normal_set
             .parse()
             .report()
@@ -656,21 +656,24 @@ fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
             .report()
             .change_context_lazy(|| HitSampleParseError::from(line))?;
 
-        let index = index
-            .parse()
-            .report()
-            .change_context_lazy(|| HitSampleParseError::from(line))?;
+        let mut index = 0;
+        let mut volume = 0;
+        let mut filename = None;
+        if let [idx, vol, filn] = leftover {
+            index = idx
+                .parse()
+                .report()
+                .change_context_lazy(|| HitSampleParseError::from(line))?;
 
-        let volume = volume
-            .parse()
-            .report()
-            .change_context_lazy(|| HitSampleParseError::from(line))?;
+            volume = vol
+                .parse()
+                .report()
+                .change_context_lazy(|| HitSampleParseError::from(line))?;
 
-        let filename = if filename.is_empty() {
-            None
-        } else {
-            Some(filename.to_owned().to_owned())
-        };
+            if !filn.is_empty() {
+                filename = Some((*filn).to_owned());
+            }
+        }
 
         HitSample {
             normal_set,
@@ -855,16 +858,19 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                     );
                 }
             } else if HitObject::is_osu_mania_hold(object_type) {
-                if let [end_time, leftover @ ..] = object_params {
+                if let [leftover] = object_params {
+                    let (end_time, hit_sample) = leftover
+                        .split_once(':')
+                        .ok_or_else(|| HitObjectParseError::from(line))?;
+
                     let end_time = end_time
                         .parse()
                         .report()
                         .change_context_lazy(|| HitObjectParseError::from(line))?;
 
-                    if let [hit_sample] = leftover {
-                        hit_sample_leftover = Some(*hit_sample);
+                    if !hit_sample.is_empty() {
+                        hit_sample_leftover = Some(hit_sample);
                     }
-
                     HitObjectParams::Hold { end_time }
                 } else {
                     bail!(
@@ -880,11 +886,11 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
             }
         };
 
-        let hit_sample = if let Some(hit_sample_leftover) = hit_sample_leftover {
-            parse_hit_sample(hit_sample_leftover)
-                .change_context_lazy(|| HitObjectParseError::from(line))?
-        } else {
-            HitSample::default()
+        let hit_sample = match hit_sample_leftover {
+            Some("") => HitSample::default(),
+            Some(hit_sample_leftover) => parse_hit_sample(hit_sample_leftover)
+                .change_context_lazy(|| HitObjectParseError::from(line))?,
+            _ => HitSample::default(),
         };
 
         Ok(HitObject {
