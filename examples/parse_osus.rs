@@ -2,12 +2,8 @@ use std::env;
 use std::path::Path;
 
 use error_stack::Result;
-use osu::osu_file::OsuBeatmapFile;
-use osu::osu_file_parsing::OsuBeatmapParseError;
-
-#[macro_use]
-mod utils;
-mod osu;
+use osus::osu::osu_file::OsuBeatmapFile;
+use osus::osu::osu_file_parsing::OsuBeatmapParseError;
 
 fn main() -> Result<(), OsuBeatmapParseError> {
     env_logger::init();
