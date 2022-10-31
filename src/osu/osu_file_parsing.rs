@@ -13,7 +13,7 @@ use crate::utils::{
 use super::osu_file::{
     Color, ColorsSection, DifficultySection, EditorSection, Event, EventParams, GeneralSection,
     HitObject, HitObjectParams, HitSample, HitSampleSet, MetadataSection, OsuBeatmapFile,
-    SliderPoint, TimingPoint,
+    SliderCurveType, SliderPoint, TimingPoint,
 };
 
 #[derive(Clone, Debug, Error)]
@@ -706,8 +706,38 @@ impl From<&str> for CurvePointsParseError {
 }
 
 fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseError> {
-    // TODO: parse curve points
-    todo!();
+    let mut curve_points = Vec::new();
+    let mut curve_type = SliderCurveType::Inherit;
+
+    for curve_token in line.split('|') {
+        match curve_token {
+            "B" => curve_type = SliderCurveType::Bezier,
+            "C" => curve_type = SliderCurveType::Catmull,
+            "L" => curve_type = SliderCurveType::Linear,
+            "P" => curve_type = SliderCurveType::PerfectCurve,
+            _ => {
+                let (x, y) = curve_token
+                    .split_once(':')
+                    .ok_or_else(|| CurvePointsParseError::from(line))?;
+
+                let x = x
+                    .parse()
+                    .report()
+                    .change_context_lazy(|| CurvePointsParseError::from(line))?;
+
+                let y = y
+                    .parse()
+                    .report()
+                    .change_context_lazy(|| CurvePointsParseError::from(line))?;
+
+                curve_points.push(SliderPoint { curve_type, x, y });
+
+                curve_type = SliderCurveType::Inherit;
+            }
+        }
+    }
+
+    Ok(curve_points)
 }
 
 #[derive(Clone, Debug, Error)]
@@ -850,8 +880,12 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
             }
         };
 
-        let hit_sample = parse_hit_sample(hit_sample_leftover.unwrap_or_default())
-            .change_context_lazy(|| HitObjectParseError::from(line))?;
+        let hit_sample = if let Some(hit_sample_leftover) = hit_sample_leftover {
+            parse_hit_sample(hit_sample_leftover)
+                .change_context_lazy(|| HitObjectParseError::from(line))?
+        } else {
+            HitSample::default()
+        };
 
         Ok(HitObject {
             x,

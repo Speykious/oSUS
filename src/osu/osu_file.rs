@@ -430,7 +430,7 @@ pub enum HitObjectParams {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct HitSample {
     /// Sample set of the normal sound.
     pub normal_set: u8,
