@@ -158,16 +158,20 @@ fn deserialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) 
     for (i, combo_color) in section.combo_colors.iter().enumerate() {
         writeln!(writer, "Combo{}: {}", i + 1, combo_color.to_osu_string())?;
     }
-    writeln!(
-        writer,
-        "SliderTrackOverride: {}",
-        section.slider_track_override.to_osu_string()
-    )?;
-    writeln!(
-        writer,
-        "SliderBorder: {}",
-        section.slider_border.to_osu_string()
-    )?;
+    if let Some(slider_track_override) = section.slider_track_override {
+        writeln!(
+            writer,
+            "SliderTrackOverride: {}",
+            slider_track_override.to_osu_string()
+        )?;
+    }
+    if let Some(slider_border) = section.slider_border {
+        writeln!(
+            writer,
+            "SliderBorder: {}",
+            slider_border.to_osu_string()
+        )?;
+    }
     writeln!(writer)
 }
 

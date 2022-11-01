@@ -535,8 +535,8 @@ fn parse_colors_section(
                 colors_section.combo_colors.push(value);
             } else {
                 match field.as_str() {
-                    "SliderTrackOverride" => colors_section.slider_track_override = value,
-                    "SliderBorder" => colors_section.slider_border = value,
+                    "SliderTrackOverride" => colors_section.slider_track_override = Some(value),
+                    "SliderBorder" => colors_section.slider_border = Some(value),
                     field => {
                         return Err(Report::new(SectionParseError::from("Colours"))
                             .attach_printable(format!("Unknown color field: {field:?}")));

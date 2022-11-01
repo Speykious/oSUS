@@ -296,9 +296,9 @@ pub struct ColorsSection {
     /// Additive combo colors
     pub combo_colors: Vec<Color>,
     /// Additive slider track color
-    pub slider_track_override: Color,
+    pub slider_track_override: Option<Color>,
     /// Slider border color
-    pub slider_border: Color,
+    pub slider_border: Option<Color>,
 }
 
 #[derive(Clone, Copy, Debug)]
