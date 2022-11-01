@@ -1,25 +1,43 @@
-use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use clap::Parser;
 use error_stack::Result;
 use osus::osu::osu_file::OsuBeatmapFile;
 use osus::osu::osu_file_parsing::OsuBeatmapParseError;
+use walkdir::WalkDir;
+
+#[derive(Parser)]
+#[command(name = "parse-osus")]
+#[command(about = "Parse every .osu file and dump a debug string of their code structure.")]
+#[command(version = "1.0")]
+#[command(author)]
+struct Cli {
+    #[arg(help = "Path to beatmap file or folder containing beatmap files.")]
+    path: PathBuf,
+    #[arg(
+        short,
+        long,
+        help = "Whether to recurse in the folder. (option is ignored if the path is a file)."
+    )]
+    recursive: bool,
+}
 
 fn main() -> Result<(), OsuBeatmapParseError> {
     env_logger::init();
+    let args = Cli::parse();
 
-    let mut args = env::args();
-    let program = args.next().expect("Excuse me wtf");
-    if args.len() == 0 {
-        println!("Usage: {program} <osu! beatmap files ...>");
-        return Ok(());
-    }
+    for entry in WalkDir::new(args.path)
+        .max_depth(if args.recursive { usize::MAX } else { 0 })
+        .follow_links(true)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| !e.path().is_dir())
+    {
+        log::warn!("Parsing {}...", entry.path().display());
 
-    for path in args {
-        log::warn!("Parsing {}...", &path);
-        match OsuBeatmapFile::parse(&path) {
+        match OsuBeatmapFile::parse(entry.path()) {
             Ok(beatmap) => {
-                let file_name = Path::new(&path)
+                let file_name = Path::new(entry.path())
                     .file_name()
                     .unwrap()
                     .to_str()
