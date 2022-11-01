@@ -1,18 +1,21 @@
+use std::io::{self, Write};
 use std::num::ParseIntError;
 use std::path::Path;
 use std::str::FromStr;
 
 use error_stack::Result;
 
+pub mod deserializing;
 pub mod error;
 pub mod parsing;
-use self::parsing::parse_osu_file;
+use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
+use self::parsing::parse_osu_file;
 
 pub type Timestamp = f64;
 
 /// Draw order of hit circle overlays compared to hit numbers.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OverlayPosition {
     /// use skin setting
     NoChange,
@@ -276,6 +279,17 @@ pub struct Color {
     pub a: Option<u8>,
 }
 
+impl Color {
+    pub fn to_osu_string(&self) -> String {
+        let Color { r, g, b, a } = self;
+        if let Some(a) = a {
+            format!("{r},{g},{b},{a}")
+        } else {
+            format!("{r},{g},{b}")
+        }
+    }
+}
+
 /// Combo and skin colors
 #[derive(Clone, Debug, Default)]
 pub struct ColorsSection {
@@ -293,6 +307,13 @@ pub struct HitSampleSet {
     pub normal_set: u8,
     /// Sample set of the whistle, finish, and clap sounds.
     pub addition_set: u8,
+}
+
+impl HitSampleSet {
+    pub fn to_osu_string(&self) -> String {
+        let HitSampleSet { normal_set, addition_set } = self;
+        format!("{normal_set}:{addition_set}")
+    }
 }
 
 impl FromStr for HitSampleSet {
@@ -414,6 +435,27 @@ pub struct HitSample {
     pub filename: Option<String>,
 }
 
+impl HitSample {
+    pub fn to_osu_string(&self) -> String {
+        let HitSample {
+            normal_set,
+            addition_set,
+            index,
+            volume,
+            filename,
+        } = self;
+
+        format!(
+            "{normal_set}:{addition_set}:{index}:{volume}:{}",
+            if let Some(filename) = filename {
+                filename.as_str()
+            } else {
+                ""
+            }
+        )
+    }
+}
+
 /// Hit object
 #[derive(Clone, Debug)]
 pub struct HitObject {
@@ -492,10 +534,11 @@ pub struct BeatmapFile {
 }
 
 impl BeatmapFile {
-    pub fn parse<P>(path: P) -> Result<BeatmapFile, BeatmapFileParseError>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn parse<P: AsRef<Path>>(path: P) -> Result<BeatmapFile, BeatmapFileParseError> {
         parse_osu_file(path)
+    }
+
+    pub fn deserialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        deserialize_beatmap_file(self, writer)
     }
 }
