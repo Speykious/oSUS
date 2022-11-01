@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use error_stack::Result;
-use osus::osu::osu_file::OsuBeatmapFile;
-use osus::osu::osu_file_parsing::OsuBeatmapParseError;
+use osus::file::beatmap::{OsuBeatmapFile, OsuBeatmapParseError};
+
 use walkdir::WalkDir;
 
 #[derive(Parser)]

@@ -1,48 +1,14 @@
-use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use error_stack::{bail, IntoReport, Report, Result, ResultExt};
-use thiserror::Error;
 
 use crate::utils::{
     parse_field_value_pair, parse_list_of, parse_list_of_with_sep, to_standardized_path,
 };
 
-use super::osu_file::{
-    Color, ColorsSection, DifficultySection, EditorSection, Event, EventParams, GeneralSection,
-    HitObject, HitObjectParams, HitSample, HitSampleSet, MetadataSection, OsuBeatmapFile,
-    SliderCurveType, SliderPoint, TimingPoint,
-};
-
-#[derive(Clone, Debug, Error)]
-#[error("Couldn't parse section [{section:?}]")]
-pub struct SectionParseError {
-    pub section: String,
-}
-
-impl From<&str> for SectionParseError {
-    fn from(section: &str) -> Self {
-        Self {
-            section: section.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Field {field} unspecified")]
-pub struct UnspecifiedFieldError {
-    pub field: String,
-}
-
-impl From<&str> for UnspecifiedFieldError {
-    fn from(field: &str) -> Self {
-        Self {
-            field: field.to_owned(),
-        }
-    }
-}
+use super::*;
 
 /// Parse a `[General]` section
 fn parse_general_section(
@@ -303,20 +269,6 @@ fn parse_difficulty_section(
     Ok(section)
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse event line ({event_line:?})")]
-pub struct EventParseError {
-    pub event_line: String,
-}
-
-impl From<&str> for EventParseError {
-    fn from(event_line: &str) -> Self {
-        Self {
-            event_line: event_line.to_owned(),
-        }
-    }
-}
-
 fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
     let mut values = line.split(',');
     let event_type: String = values
@@ -445,20 +397,6 @@ fn parse_events_section(
     Ok(events)
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse timing point ({timing_point_line:?})")]
-pub struct TimingPointParseError {
-    pub timing_point_line: String,
-}
-
-impl From<&str> for TimingPointParseError {
-    fn from(timing_point_line: &str) -> Self {
-        Self {
-            timing_point_line: timing_point_line.to_owned(),
-        }
-    }
-}
-
 fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> {
     let values: Vec<_> = line.split(',').collect();
 
@@ -556,20 +494,6 @@ fn parse_timing_points_section(
     Ok(timing_points)
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse '{color:?}' into a color")]
-pub struct ColorParseError {
-    pub color: String,
-}
-
-impl From<&str> for ColorParseError {
-    fn from(event_line: &str) -> Self {
-        Self {
-            color: event_line.to_owned(),
-        }
-    }
-}
-
 fn parse_color(line: &str) -> Result<Color, ColorParseError> {
     let nums = parse_list_of(line).change_context_lazy(|| ColorParseError::from(line))?;
     if let [r, g, b] = nums[..] {
@@ -629,20 +553,6 @@ fn parse_colors_section(
     Ok(colors_section)
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a hit-sample")]
-pub struct HitSampleParseError {
-    pub line: String,
-}
-
-impl From<&str> for HitSampleParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
-}
-
 fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
     let args = line.split(':').collect::<Vec<_>>();
     let hit_sample = if let [normal_set, addition_set, leftover @ ..] = &args[..] {
@@ -694,20 +604,6 @@ fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
     Ok(hit_sample)
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a set of curve points")]
-pub struct CurvePointsParseError {
-    pub line: String,
-}
-
-impl From<&str> for CurvePointsParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
-}
-
 fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseError> {
     let mut curve_points = Vec::new();
     let mut curve_type = SliderCurveType::Inherit;
@@ -741,20 +637,6 @@ fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseEr
     }
 
     Ok(curve_points)
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a hit-object")]
-pub struct HitObjectParseError {
-    pub line: String,
-}
-
-impl From<&str> for HitObjectParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
 }
 
 fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
@@ -938,20 +820,6 @@ fn parse_hit_objects_section(
     }
 
     Ok(hit_objects)
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse osu! beatmap file ({filename:?})")]
-pub struct OsuBeatmapParseError {
-    pub filename: OsString,
-}
-
-impl From<&OsStr> for OsuBeatmapParseError {
-    fn from(filename: &OsStr) -> Self {
-        Self {
-            filename: filename.to_owned(),
-        }
-    }
 }
 
 pub fn parse_osu_file<P>(path: P) -> Result<OsuBeatmapFile, OsuBeatmapParseError>

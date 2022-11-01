@@ -1,3 +1,3 @@
 #[macro_use]
 pub mod utils;
-pub mod osu;
+pub mod file;

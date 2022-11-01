@@ -1,13 +1,13 @@
-#![allow(dead_code)]
-
 use std::num::ParseIntError;
 use std::path::Path;
 use std::str::FromStr;
 
 use error_stack::Result;
-use thiserror::Error;
 
-use super::osu_file_parsing::{parse_osu_file, OsuBeatmapParseError};
+pub mod error;
+pub mod parsing;
+use self::parsing::parse_osu_file;
+pub use self::error::*;
 
 pub type Timestamp = f64;
 
@@ -20,20 +20,6 @@ pub enum OverlayPosition {
     Below,
     /// draw overlays on top of numbers
     Above,
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Invalid overlay position: {op_string:?}. Expected NoChange, Below or Above")]
-pub struct InvalidOverlayPositionError {
-    pub op_string: String,
-}
-
-impl From<&str> for InvalidOverlayPositionError {
-    fn from(op_str: &str) -> Self {
-        Self {
-            op_string: op_str.to_owned(),
-        }
-    }
 }
 
 impl FromStr for OverlayPosition {
@@ -307,22 +293,6 @@ pub struct HitSampleSet {
     pub normal_set: u8,
     /// Sample set of the whistle, finish, and clap sounds.
     pub addition_set: u8,
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Invalid hitsample set: {hss_string:?}; {context}")]
-pub struct InvalidHitSampleSetError {
-    pub hss_string: String,
-    pub context: String,
-}
-
-impl From<&str> for InvalidHitSampleSetError {
-    fn from(op_str: &str) -> Self {
-        Self {
-            hss_string: op_str.to_owned(),
-            context: "expected string of the format \"u8:u8\"".to_owned(),
-        }
-    }
 }
 
 impl FromStr for HitSampleSet {
