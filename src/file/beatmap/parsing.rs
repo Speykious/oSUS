@@ -12,7 +12,7 @@ use super::*;
 
 /// Parse a `[General]` section
 fn parse_general_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<GeneralSection, SectionParseError> {
     let mut section = GeneralSection::default();
@@ -103,7 +103,7 @@ fn parse_general_section(
 
 /// Parse a `[Editor]` section
 fn parse_editor_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<EditorSection, SectionParseError> {
     let mut bookmarks: Vec<f32> = Vec::new();
@@ -168,7 +168,7 @@ fn parse_editor_section(
 
 /// Parse a `[Metadata]` section
 fn parse_metadata_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<MetadataSection, SectionParseError> {
     let mut section = MetadataSection::default();
@@ -216,7 +216,7 @@ fn parse_metadata_section(
 
 /// Parse a `[Difficulty]` section
 fn parse_difficulty_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<DifficultySection, SectionParseError> {
     let mut section = DifficultySection::default();
@@ -369,7 +369,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
 
 /// Parse a `[Events]` section
 fn parse_events_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<Vec<Event>, SectionParseError> {
     let mut events: Vec<Event> = Vec::new();
@@ -467,7 +467,7 @@ fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> 
 
 /// Parse a `[TimingPoints]` section
 fn parse_timing_points_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<Vec<TimingPoint>, SectionParseError> {
     let mut timing_points: Vec<TimingPoint> = Vec::new();
@@ -512,7 +512,7 @@ fn parse_color(line: &str) -> Result<Color, ColorParseError> {
 }
 
 fn parse_colors_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<ColorsSection, SectionParseError> {
     let mut colors_section: ColorsSection = ColorsSection::default();
@@ -795,7 +795,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
 }
 
 fn parse_hit_objects_section(
-    reader: &mut impl Iterator<Item = Result<String, OsuBeatmapParseError>>,
+    reader: &mut impl Iterator<Item = Result<String, BeatmapFileParseError>>,
     section_header: &mut Option<String>,
 ) -> Result<Vec<HitObject>, SectionParseError> {
     let mut hit_objects: Vec<HitObject> = Vec::new();
@@ -822,18 +822,18 @@ fn parse_hit_objects_section(
     Ok(hit_objects)
 }
 
-pub fn parse_osu_file<P>(path: P) -> Result<OsuBeatmapFile, OsuBeatmapParseError>
+pub fn parse_osu_file<P>(path: P) -> Result<BeatmapFile, BeatmapFileParseError>
 where
     P: AsRef<Path>,
 {
-    let mut beatmap = OsuBeatmapFile::default();
+    let mut beatmap = BeatmapFile::default();
 
     let filename = path.as_ref().file_name().unwrap();
-    let file = rctx!(File::open(&path), OsuBeatmapParseError::from(filename))?;
+    let file = rctx!(File::open(&path), BeatmapFileParseError::from(filename))?;
 
     let mut reader = BufReader::new(file)
         .lines()
-        .map(|line| rctx!(line, OsuBeatmapParseError::from(filename)))
+        .map(|line| rctx!(line, BeatmapFileParseError::from(filename)))
         .filter(|line| match line {
             Ok(line) => {
                 let l = line.trim();
@@ -844,7 +844,7 @@ where
         });
 
     let fformat_string = reader.next().ok_or_else(|| {
-        Report::new(OsuBeatmapParseError::from(filename))
+        Report::new(BeatmapFileParseError::from(filename))
             .attach_printable("File is empty".to_owned())
     })??;
 
@@ -855,12 +855,12 @@ where
         .trim_start_matches('\u{feff}')
         .strip_prefix("osu file format v")
         .ok_or_else(|| {
-            Report::new(OsuBeatmapParseError::from(filename)).attach_printable(format!(
+            Report::new(BeatmapFileParseError::from(filename)).attach_printable(format!(
                 "First line {fformat_string:?} doesn't match \"osu file format v<version>\""
             ))
         })?;
 
-    beatmap.osu_file_format = rctx!(format_version.parse(), OsuBeatmapParseError::from(filename))?;
+    beatmap.osu_file_format = rctx!(format_version.parse(), BeatmapFileParseError::from(filename))?;
 
     // Read file lazily section by section
     if let Some(line) = reader.next() {
@@ -871,49 +871,49 @@ where
                 "[General]" => {
                     beatmap.general = Some(ctx!(
                         parse_general_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?);
                 }
                 "[Editor]" => {
                     beatmap.editor = Some(ctx!(
                         parse_editor_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?);
                 }
                 "[Metadata]" => {
                     beatmap.metadata = Some(ctx!(
                         parse_metadata_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?);
                 }
                 "[Difficulty]" => {
                     beatmap.difficulty = Some(ctx!(
                         parse_difficulty_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?);
                 }
                 "[Events]" => {
                     beatmap.events = ctx!(
                         parse_events_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?;
                 }
                 "[TimingPoints]" => {
                     beatmap.timing_points = ctx!(
                         parse_timing_points_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?;
                 }
                 "[Colours]" => {
                     beatmap.colors = Some(ctx!(
                         parse_colors_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?);
                 }
                 "[HitObjects]" => {
                     beatmap.hit_objects = ctx!(
                         parse_hit_objects_section(&mut reader, &mut section_header),
-                        OsuBeatmapParseError::from(filename)
+                        BeatmapFileParseError::from(filename)
                     )?;
                 }
                 _ => section_header = None,

@@ -468,7 +468,7 @@ impl HitObject {
 
 /// `.osu` is a human-readable file format containing information about a beatmap.
 #[derive(Clone, Debug, Default)]
-pub struct OsuBeatmapFile {
+pub struct BeatmapFile {
     /// The first line of the file which specifies the file format version.
     /// For example, `osu file format v14` is the latest *stable* version.
     /// `osu file format v128` is the current version that osu!lazer uses.
@@ -491,8 +491,8 @@ pub struct OsuBeatmapFile {
     pub hit_objects: Vec<HitObject>,
 }
 
-impl OsuBeatmapFile {
-    pub fn parse<P>(path: P) -> Result<OsuBeatmapFile, OsuBeatmapParseError>
+impl BeatmapFile {
+    pub fn parse<P>(path: P) -> Result<BeatmapFile, BeatmapFileParseError>
     where
         P: AsRef<Path>,
     {

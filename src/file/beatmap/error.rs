@@ -146,11 +146,11 @@ impl From<&str> for HitObjectParseError {
 
 #[derive(Clone, Debug, Error)]
 #[error("Could not parse osu! beatmap file ({filename:?})")]
-pub struct OsuBeatmapParseError {
+pub struct BeatmapFileParseError {
     pub filename: OsString,
 }
 
-impl From<&OsStr> for OsuBeatmapParseError {
+impl From<&OsStr> for BeatmapFileParseError {
     fn from(filename: &OsStr) -> Self {
         Self {
             filename: filename.to_owned(),

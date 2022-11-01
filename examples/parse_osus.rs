@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use error_stack::Result;
-use osus::file::beatmap::{OsuBeatmapFile, OsuBeatmapParseError};
+use osus::file::beatmap::{BeatmapFile, BeatmapFileParseError};
 
 use walkdir::WalkDir;
 
@@ -22,7 +22,7 @@ struct Cli {
     recursive: bool,
 }
 
-fn main() -> Result<(), OsuBeatmapParseError> {
+fn main() -> Result<(), BeatmapFileParseError> {
     env_logger::init();
     let args = Cli::parse();
 
@@ -35,7 +35,7 @@ fn main() -> Result<(), OsuBeatmapParseError> {
     {
         log::warn!("Parsing {}...", entry.path().display());
 
-        match OsuBeatmapFile::parse(entry.path()) {
+        match BeatmapFile::parse(entry.path()) {
             Ok(beatmap) => {
                 let file_name = Path::new(entry.path())
                     .file_name()
