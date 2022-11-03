@@ -12,11 +12,13 @@ use osus::file::beatmap::{BeatmapFile, TimingPoint};
 struct Cli {
     #[arg(help = "Path to beatmap file or folder containing beatmap files.")]
     path: PathBuf,
+    #[arg(short, long, default_value_t = true, help = "Whether to use the Soft sample set as the overwriting value.")]
+    soft: bool,
 }
 
 fn main() -> io::Result<()> {
     env_logger::init();
-    let Cli { path } = Cli::parse();
+    let Cli { path, soft } = Cli::parse();
 
     log::warn!("Parsing {}...", path.display());
     let mut beatmap = match BeatmapFile::parse(&path) {
@@ -28,7 +30,7 @@ fn main() -> io::Result<()> {
     };
 
     log::warn!("Resetting hitsounds...");
-    reset_hitsounds(&mut beatmap.timing_points);
+    reset_hitsounds(&mut beatmap.timing_points, soft);
 
     log::warn!("Adding suffix to map version...");
     if let Some(metadata) = &mut beatmap.metadata {
@@ -42,9 +44,10 @@ fn main() -> io::Result<()> {
 }
 
 /// Resets all hitsounds in timing points, including volume.
-fn reset_hitsounds(timing_points: &mut [TimingPoint]) {
+fn reset_hitsounds(timing_points: &mut [TimingPoint], soft: bool) {
+    let sample_set = if soft { 2 } else { 0 };
     for timing_point in timing_points {
-        timing_point.sample_set = 0;
+        timing_point.sample_set = sample_set;
         timing_point.sample_index = 0;
         timing_point.volume = 100;
     }
