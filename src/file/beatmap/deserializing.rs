@@ -225,10 +225,10 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             writeln!(writer, ",{}", hit_sample.to_osu_string())
         }
         HitObjectParams::Spinner { end_time } => {
-            writeln!(writer, "{end_time},{}", hit_sample.to_osu_string())
+            writeln!(writer, ",{end_time},{}", hit_sample.to_osu_string())
         }
         HitObjectParams::Hold { end_time } => {
-            writeln!(writer, "{end_time}:{}", hit_sample.to_osu_string())
+            writeln!(writer, ",{end_time}:{}", hit_sample.to_osu_string())
         }
     }
 }
