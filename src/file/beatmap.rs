@@ -267,6 +267,20 @@ pub struct TimingPoint {
     pub effects: u32,
 }
 
+impl TimingPoint {
+    /// Whether this timestamp is a duplicate of the other.
+    /// 
+    /// A timestamp is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
+    pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
+        self.beat_length == other.beat_length
+            && self.meter == other.meter
+            && self.sample_set == other.sample_set
+            && self.sample_index == other.sample_index
+            && self.volume == other.volume
+            && self.effects == other.effects
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Color {
     /// Red value in range `[0, 255]`.
@@ -311,7 +325,10 @@ pub struct HitSampleSet {
 
 impl HitSampleSet {
     pub fn to_osu_string(&self) -> String {
-        let HitSampleSet { normal_set, addition_set } = self;
+        let HitSampleSet {
+            normal_set,
+            addition_set,
+        } = self;
         format!("{normal_set}:{addition_set}")
     }
 }
