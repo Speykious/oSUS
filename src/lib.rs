@@ -74,7 +74,7 @@ pub fn remove_useless_speed_changes(
 
             if ho_slice
                 .iter()
-                .all(|ho| HitObject::is_hit_circle(ho.object_type))
+                .all(|ho| HitObject::is_hit_circle(ho.object_type) || HitObject::is_spinner(ho.object_type))
             {
                 // prev_timing_point is useless
             } else {
