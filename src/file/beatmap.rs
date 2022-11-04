@@ -241,7 +241,7 @@ pub struct Event {
 }
 
 /// Timing and control points
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TimingPoint {
     /// Start time of the timing section, in milliseconds from the beginning of the beatmap's audio.
     /// The end of the timing section is the next timing point's time (or never, if this is the last timing point).
@@ -267,9 +267,15 @@ pub struct TimingPoint {
     pub effects: u32,
 }
 
+impl PartialOrd for TimingPoint {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.time.partial_cmp(&other.time)
+    }
+}
+
 impl TimingPoint {
     /// Whether this timestamp is a duplicate of the other.
-    /// 
+    ///
     /// A timestamp is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
     pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
         self.beat_length == other.beat_length
@@ -277,6 +283,16 @@ impl TimingPoint {
             && self.sample_set == other.sample_set
             && self.sample_index == other.sample_index
             && self.volume == other.volume
+            && self.effects == other.effects
+    }
+
+    /// Whether this timestamp is a duplicate of the other, without considering
+    /// hitsounding fields (volume, sample set, sample index).
+    ///
+    /// A timestamp is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
+    pub fn is_duplicate_without_hitsounding(&self, other: &TimingPoint) -> bool {
+        self.beat_length == other.beat_length
+            && self.meter == other.meter
             && self.effects == other.effects
     }
 }

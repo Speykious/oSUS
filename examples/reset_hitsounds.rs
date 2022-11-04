@@ -2,7 +2,8 @@ use std::io;
 use std::path::PathBuf;
 
 use clap::Parser;
-use osus::file::beatmap::{BeatmapFile, TimingPoint};
+use osus::file::beatmap::BeatmapFile;
+use osus::reset_hitsounds;
 
 #[derive(Parser)]
 #[command(name = "reset-hitsounds")]
@@ -30,7 +31,7 @@ fn main() -> io::Result<()> {
     };
 
     log::warn!("Resetting hitsounds...");
-    reset_hitsounds(&mut beatmap.timing_points, soft);
+    reset_hitsounds(&mut beatmap.timing_points, if soft { 2 } else { 0 });
 
     log::warn!("Adding suffix to map version...");
     if let Some(metadata) = &mut beatmap.metadata {
@@ -41,14 +42,4 @@ fn main() -> io::Result<()> {
     beatmap.deserialize(&mut io::stdout())?;
 
     Ok(())
-}
-
-/// Resets all hitsounds in timing points, including volume.
-fn reset_hitsounds(timing_points: &mut [TimingPoint], soft: bool) {
-    let sample_set = if soft { 2 } else { 0 };
-    for timing_point in timing_points {
-        timing_point.sample_set = sample_set;
-        timing_point.sample_index = 0;
-        timing_point.volume = 100;
-    }
 }

@@ -2,7 +2,8 @@ use std::io;
 use std::path::PathBuf;
 
 use clap::Parser;
-use osus::file::beatmap::{BeatmapFile, TimingPoint};
+use osus::file::beatmap::BeatmapFile;
+use osus::{remove_duplicates, remove_useless_speed_changes};
 
 #[derive(Parser)]
 #[command(name = "undupe-timing-points")]
@@ -27,34 +28,22 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // remove duplicates
+    log::warn!("Removing duplicates...");
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 
+    log::warn!("Removing useless speed changes...");
+    beatmap.timing_points = remove_useless_speed_changes(&beatmap.timing_points, &beatmap.hit_objects);
+
+    log::warn!("Removing duplicates one more time...");
+    beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
+
+    log::warn!("Adding suffix to map version...");
     if let Some(metadata) = &mut beatmap.metadata {
-        metadata.version += " ||UNDUPED";
+        metadata.version += " ||UNDUPED+USEFUL";
     }
 
     log::warn!("Rewrite {}...", path.display());
     beatmap.deserialize(&mut io::stdout())?;
 
     Ok(())
-}
-
-/// Removes all duplicate timing points. It will keep every 
-fn remove_duplicates(timing_points: &[TimingPoint]) -> Vec<TimingPoint> {
-    if timing_points.is_empty() {
-        return Vec::new();
-    }
-
-    let mut unduped_points = vec![timing_points[0].clone()];
-    let mut prev_timing_point = &timing_points[0];
-
-    for timing_point in &timing_points[1..] {
-        if timing_point.uninherited || !timing_point.is_duplicate(prev_timing_point) {
-            unduped_points.push(timing_point.clone());
-            prev_timing_point = timing_point;
-        }
-    }
-
-    unduped_points
 }
