@@ -6,8 +6,8 @@ use osus::file::beatmap::BeatmapFile;
 use osus::{remove_duplicates, remove_useless_speed_changes};
 
 #[derive(Parser)]
-#[command(name = "undupe-timing-points")]
-#[command(about = "Remove duplicate timing points of a .osu file.")]
+#[command(name = "cleanup-timing-points")]
+#[command(about = "Remove duplicate and useless timing points from a .osu file.")]
 #[command(version = "1.0")]
 #[command(author)]
 struct Cli {
@@ -34,12 +34,12 @@ fn main() -> io::Result<()> {
     log::warn!("Removing useless speed changes...");
     beatmap.timing_points = remove_useless_speed_changes(&beatmap.timing_points, &beatmap.hit_objects);
 
-    log::warn!("Removing duplicates one more time...");
+    log::warn!("Removing duplicates again...");
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 
     log::warn!("Adding suffix to map version...");
     if let Some(metadata) = &mut beatmap.metadata {
-        metadata.version += " ||UNDUPED+USEFUL";
+        metadata.version += " ||CLEAN";
     }
 
     log::warn!("Rewrite {}...", path.display());

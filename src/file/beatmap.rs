@@ -274,25 +274,15 @@ impl PartialOrd for TimingPoint {
 }
 
 impl TimingPoint {
-    /// Whether this timestamp is a duplicate of the other.
+    /// Whether this timing point is a duplicate of the other.
     ///
-    /// A timestamp is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
+    /// A timing point is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
     pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
         self.beat_length == other.beat_length
             && self.meter == other.meter
             && self.sample_set == other.sample_set
             && self.sample_index == other.sample_index
             && self.volume == other.volume
-            && self.effects == other.effects
-    }
-
-    /// Whether this timestamp is a duplicate of the other, without considering
-    /// hitsounding fields (volume, sample set, sample index).
-    ///
-    /// A timestamp is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
-    pub fn is_duplicate_without_hitsounding(&self, other: &TimingPoint) -> bool {
-        self.beat_length == other.beat_length
-            && self.meter == other.meter
             && self.effects == other.effects
     }
 }
