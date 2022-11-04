@@ -108,7 +108,7 @@ pub fn hit_objects_between(
     let mut end_index = hit_objects.len();
     for (i, hit_object) in hit_objects[start_index..].iter().enumerate() {
         if !time_range.contains(&hit_object.time) {
-            end_index = i;
+            end_index = start_index + i;
             break;
         }
     }
