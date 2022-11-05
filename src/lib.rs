@@ -2,7 +2,7 @@
 pub mod utils;
 pub mod file;
 
-use std::ops::RangeBounds;
+use std::ops::{RangeBounds, Bound};
 
 use file::beatmap::{HitObject, Timestamp, TimingPoint};
 
@@ -71,8 +71,7 @@ pub fn remove_useless_speed_changes(
             prev_timing_point_was_added = true;
         } else if !prev_timing_point_was_added {
             // verify if prev timing point is useless
-            let ho_slice =
-                hit_objects_between(hit_objects, prev_timing_point.time..timing_point.time);
+            let ho_slice = hit_objects.between(prev_timing_point.time..timing_point.time);
 
             if ho_slice
                 .iter()
@@ -95,25 +94,28 @@ pub fn remove_useless_speed_changes(
     result_points
 }
 
-pub fn hit_objects_between(
-    hit_objects: &[HitObject],
-    time_range: impl RangeBounds<Timestamp>,
-) -> &[HitObject] {
-    let mut start_index = 0;
-    for (i, hit_object) in hit_objects.iter().enumerate() {
-        if time_range.contains(&hit_object.time) {
-            start_index = i;
-            break;
-        }
-    }
+pub trait Timestamped {
+    fn timestamp(&self) -> Timestamp;
+}
 
-    let mut end_index = hit_objects.len();
-    for (i, hit_object) in hit_objects[start_index..].iter().enumerate() {
-        if !time_range.contains(&hit_object.time) {
-            end_index = start_index + i;
-            break;
-        }
-    }
+pub trait TimestampedSlice<T: Timestamped> {
+    fn between(&self, time_range: impl RangeBounds<Timestamp>) -> &[T];
+}
 
-    &hit_objects[start_index..end_index]
+impl<T: Timestamped> TimestampedSlice<T> for &[T] {
+    fn between(&self, time_range: impl RangeBounds<Timestamp>) -> &[T] {
+        let start_index = match time_range.start_bound() {
+            Bound::Included(start) => self.partition_point(|o| o.timestamp() < *start),
+            Bound::Excluded(start) => self.partition_point(|o| o.timestamp() <= *start),
+            Bound::Unbounded => 0,
+        };
+
+        let end_index = match time_range.end_bound() {
+            Bound::Included(end) => self.partition_point(|o| o.timestamp() <= *end),
+            Bound::Excluded(end) => self.partition_point(|o| o.timestamp() < *end),
+            Bound::Unbounded => self.len(),
+        };
+
+        &self[start_index..end_index]
+    }
 }

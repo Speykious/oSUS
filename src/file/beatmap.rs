@@ -9,6 +9,8 @@ use error_stack::Result;
 pub mod deserializing;
 pub mod error;
 pub mod parsing;
+
+use crate::Timestamped;
 use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
 use self::parsing::parse_osu_file;
@@ -241,6 +243,12 @@ pub struct Event {
     pub params: EventParams,
 }
 
+impl Timestamped for Event {
+    fn timestamp(&self) -> Timestamp {
+        self.start_time
+    }
+}
+
 /// Timing and control points
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TimingPoint {
@@ -266,6 +274,12 @@ pub struct TimingPoint {
     pub uninherited: bool,
     /// Bit flags that give the timing point extra effects.
     pub effects: u32,
+}
+
+impl Timestamped for TimingPoint {
+    fn timestamp(&self) -> Timestamp {
+        self.time
+    }
 }
 
 impl PartialOrd for TimingPoint {
@@ -591,6 +605,12 @@ impl HitObject {
             HitObjectType::Spinner => Self::RAW_TYPE_SPINNER,
             HitObjectType::Hold => Self::RAW_TYPE_OSU_MANIA_HOLD,
         }
+    }
+}
+
+impl Timestamped for HitObject {
+    fn timestamp(&self) -> Timestamp {
+        self.time
     }
 }
 
