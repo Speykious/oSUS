@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::io::{self, Write};
 use std::num::ParseIntError;
 use std::path::Path;
@@ -447,11 +448,38 @@ pub enum HitObjectParams {
 /// Extra parameters specific to the object's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HitObjectType {
+    /// Hit circle.
+    /// 
+    /// # Example
+    /// ![hit circle](https://i.imgur.com/TcQmAig.png)
     HitCircle,
+    /// Slider.
+    /// 
+    /// # Example
+    /// ![slider](https://i.imgur.com/QmrfHMg.png)
     Slider,
+    /// Spinner.
+    /// 
+    /// # Example
+    /// ![spinner](https://i.imgur.com/mB61gtg.png)
     Spinner,
-    /// (osu!mania only)
+    /// Hold. (osu!mania only)
+    /// 
+    /// # Example
+    /// ![osu!mania hold](https://i.imgur.com/viRShZX.png)
     Hold,
+}
+
+impl Display for HitObjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            HitObjectType::HitCircle => "hit circle",
+            HitObjectType::Slider => "slider",
+            HitObjectType::Spinner => "spinner",
+            HitObjectType::Hold => "hold",
+        };
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Clone, Debug, Default)]
