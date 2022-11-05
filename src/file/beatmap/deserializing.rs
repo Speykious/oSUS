@@ -15,7 +15,11 @@ pub fn deserialize_general_section<W: Write>(
     writeln!(writer, "SampleSet: {}", section.sample_set)?;
     writeln!(writer, "StackLeniency: {}", section.stack_leniency)?;
     writeln!(writer, "Mode: {}", section.mode)?;
-    writeln!(writer, "LetterboxInBreaks: {}", section.letterbox_in_breaks as u8)?;
+    writeln!(
+        writer,
+        "LetterboxInBreaks: {}",
+        section.letterbox_in_breaks as u8
+    )?;
     // do not write StoryFireInFront (deprecated)
     if section.use_skin_sprites {
         writeln!(writer, "UseSkinSprites: {}", section.use_skin_sprites as u8)?;
@@ -149,7 +153,8 @@ fn deserialize_timing_point<W: Write>(
 
     writeln!(
         writer,
-        "{time},{beat_length},{meter},{sample_set},{sample_index},{volume},{},{effects}", *uninherited as u8
+        "{time},{beat_length},{meter},{sample_set},{sample_index},{volume},{},{effects}",
+        *uninherited as u8
     )
 }
 
@@ -166,11 +171,7 @@ fn deserialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) 
         )?;
     }
     if let Some(slider_border) = section.slider_border {
-        writeln!(
-            writer,
-            "SliderBorder: {}",
-            slider_border.to_osu_string()
-        )?;
+        writeln!(writer, "SliderBorder: {}", slider_border.to_osu_string())?;
     }
     writeln!(writer)
 }
@@ -180,13 +181,14 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
         x,
         y,
         time,
-        object_type,
         hit_sound,
         object_params,
         hit_sample,
+        ..
     } = hit_object;
 
-    write!(writer, "{x},{y},{time},{object_type},{hit_sound}")?;
+    let raw_object_type = hit_object.raw_object_type();
+    write!(writer, "{x},{y},{time},{raw_object_type},{hit_sound}")?;
     match object_params {
         HitObjectParams::HitCircle => {
             writeln!(writer, ",{}", hit_sample.to_osu_string())
@@ -219,8 +221,16 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             write!(writer, ",{},{}", slides, length)?;
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
                 let edge_hitsounds: Vec<_> = edge_hitsounds.iter().map(u8::to_string).collect();
-                let edge_samplesets: Vec<_> = edge_samplesets.iter().map(HitSampleSet::to_osu_string).collect();
-                write!(writer, ",{},{}", edge_hitsounds.join("|"), edge_samplesets.join("|"))?;
+                let edge_samplesets: Vec<_> = edge_samplesets
+                    .iter()
+                    .map(HitSampleSet::to_osu_string)
+                    .collect();
+                write!(
+                    writer,
+                    ",{},{}",
+                    edge_hitsounds.join("|"),
+                    edge_samplesets.join("|")
+                )?;
             }
             writeln!(writer, ",{}", hit_sample.to_osu_string())
         }

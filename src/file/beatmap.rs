@@ -444,6 +444,16 @@ pub enum HitObjectParams {
     },
 }
 
+/// Extra parameters specific to the object's type.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HitObjectType {
+    HitCircle,
+    Slider,
+    Spinner,
+    /// (osu!mania only)
+    Hold,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct HitSample {
     /// Sample set of the normal sound.
@@ -489,7 +499,7 @@ pub struct HitObject {
     /// Time when the object is to be hit, in milliseconds from the beginning of the beatmap's audio.
     pub time: Timestamp,
     /// Bit flags indicating the type of the object.
-    pub object_type: u8,
+    pub object_type: HitObjectType,
     /// Bit flags indicating the hitsound applied to the object.
     pub hit_sound: u8,
     /// Extra parameters specific to the object's type.
@@ -502,32 +512,57 @@ pub struct HitObject {
 
 impl HitObject {
     /// Position of the bit that signifies whether a hit object is a hit circle in its `type` bit flags.
-    pub const TYPE_HIT_CIRCLE: u8 = 0;
+    pub const RAW_TYPE_HIT_CIRCLE: u8 = 0;
     /// Position of the bit that signifies whether a hit object is a slider in its `type` bit flags.
-    pub const TYPE_SLIDER: u8 = 1;
+    pub const RAW_TYPE_SLIDER: u8 = 1;
     /// Position of the bit that signifies whether a hit object is a spinner in its `type` bit flags.
-    pub const TYPE_SPINNER: u8 = 3;
+    pub const RAW_TYPE_SPINNER: u8 = 3;
     /// Position of the bit that signifies whether a hit object is an osu!mania hold in its `type` bit flags.
-    pub const TYPE_OSU_MANIA_HOLD: u8 = 7;
+    pub const RAW_TYPE_OSU_MANIA_HOLD: u8 = 7;
 
-    fn is_base_type(object_type: u8, base_type: u8) -> bool {
-        object_type & (1 << base_type) > 0
+    fn raw_is_base_type(raw_object_type: u8, base_type: u8) -> bool {
+        raw_object_type & (1 << base_type) > 0
     }
 
-    pub fn is_hit_circle(object_type: u8) -> bool {
-        Self::is_base_type(object_type, HitObject::TYPE_HIT_CIRCLE)
+    pub fn raw_is_hit_circle(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_HIT_CIRCLE)
     }
 
-    pub fn is_slider(object_type: u8) -> bool {
-        Self::is_base_type(object_type, HitObject::TYPE_SLIDER)
+    pub fn raw_is_slider(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SLIDER)
     }
 
-    pub fn is_spinner(object_type: u8) -> bool {
-        Self::is_base_type(object_type, HitObject::TYPE_SPINNER)
+    pub fn raw_is_spinner(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SPINNER)
     }
 
-    pub fn is_osu_mania_hold(object_type: u8) -> bool {
-        Self::is_base_type(object_type, HitObject::TYPE_OSU_MANIA_HOLD)
+    pub fn raw_is_osu_mania_hold(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_OSU_MANIA_HOLD)
+    }
+
+    pub fn is_hit_circle(&self) -> bool {
+        self.object_type == HitObjectType::HitCircle
+    }
+
+    pub fn is_slider(&self) -> bool {
+        self.object_type == HitObjectType::Slider
+    }
+
+    pub fn is_spinner(&self) -> bool {
+        self.object_type == HitObjectType::Spinner
+    }
+
+    pub fn is_osu_mania_hold(&self) -> bool {
+        self.object_type == HitObjectType::Hold
+    }
+
+    pub fn raw_object_type(&self) -> u8 {
+        match self.object_type {
+            HitObjectType::HitCircle => Self::RAW_TYPE_HIT_CIRCLE,
+            HitObjectType::Slider => Self::RAW_TYPE_SLIDER,
+            HitObjectType::Spinner => Self::RAW_TYPE_SPINNER,
+            HitObjectType::Hold => Self::RAW_TYPE_OSU_MANIA_HOLD,
+        }
     }
 }
 

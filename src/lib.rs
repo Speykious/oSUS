@@ -16,7 +16,7 @@ pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: u8) {
 }
 
 /// Removes all duplicate timing points. It will keep every uninherited one.
-/// 
+///
 /// A timing point is a duplicate if all its fields except `time` and `uninherited` are the same as the direct previous timing point.
 pub fn remove_duplicates(timing_points: &[TimingPoint]) -> Vec<TimingPoint> {
     if timing_points.is_empty() {
@@ -76,7 +76,7 @@ pub fn remove_useless_speed_changes(
 
             if ho_slice
                 .iter()
-                .all(|ho| HitObject::is_hit_circle(ho.object_type) || HitObject::is_spinner(ho.object_type))
+                .all(|ho| ho.is_hit_circle() || ho.is_spinner())
             {
                 // prev_timing_point is useless
             } else {

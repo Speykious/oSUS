@@ -670,13 +670,13 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
         let mut hit_sample_leftover: Option<&str> = None;
 
         let object_params = {
-            if HitObject::is_hit_circle(object_type) {
+            if HitObject::raw_is_hit_circle(object_type) {
                 if let [hit_sample] = object_params {
                     hit_sample_leftover = Some(*hit_sample);
                 }
 
                 HitObjectParams::HitCircle
-            } else if HitObject::is_slider(object_type) {
+            } else if HitObject::raw_is_slider(object_type) {
                 if let [curve_points, slides, length, leftover @ ..] = object_params {
                     let curve_points = parse_curve_points(curve_points)
                         .change_context_lazy(|| HitObjectParseError::from(line))?;
@@ -719,7 +719,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                         ))
                     );
                 }
-            } else if HitObject::is_spinner(object_type) {
+            } else if HitObject::raw_is_spinner(object_type) {
                 if let [end_time, leftover @ ..] = object_params {
                     let end_time = end_time
                         .parse()
@@ -739,7 +739,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                         ))
                     );
                 }
-            } else if HitObject::is_osu_mania_hold(object_type) {
+            } else if HitObject::raw_is_osu_mania_hold(object_type) {
                 if let [leftover] = object_params {
                     let (end_time, hit_sample) = leftover
                         .split_once(':')
@@ -773,6 +773,13 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
             Some(hit_sample_leftover) => parse_hit_sample(hit_sample_leftover)
                 .change_context_lazy(|| HitObjectParseError::from(line))?,
             _ => HitSample::default(),
+        };
+
+        let object_type = match object_params {
+            HitObjectParams::HitCircle => HitObjectType::HitCircle,
+            HitObjectParams::Slider { .. } => HitObjectType::Slider,
+            HitObjectParams::Spinner { .. } => HitObjectType::Spinner,
+            HitObjectParams::Hold { .. } => HitObjectType::Hold,
         };
 
         Ok(HitObject {
