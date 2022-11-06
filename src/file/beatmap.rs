@@ -10,10 +10,10 @@ pub mod deserializing;
 pub mod error;
 pub mod parsing;
 
-use crate::Timestamped;
 use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
 use self::parsing::parse_osu_file;
+use crate::Timestamped;
 
 pub type Timestamp = f64;
 
@@ -463,22 +463,22 @@ pub enum HitObjectParams {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HitObjectType {
     /// Hit circle.
-    /// 
+    ///
     /// # Example
     /// ![hit circle](https://i.imgur.com/TcQmAig.png)
     HitCircle,
     /// Slider.
-    /// 
+    ///
     /// # Example
     /// ![slider](https://i.imgur.com/QmrfHMg.png)
     Slider,
     /// Spinner.
-    /// 
+    ///
     /// # Example
     /// ![spinner](https://i.imgur.com/mB61gtg.png)
     Spinner,
     /// Hold. (osu!mania only)
-    /// 
+    ///
     /// # Example
     /// ![osu!mania hold](https://i.imgur.com/viRShZX.png)
     Hold,
@@ -505,7 +505,17 @@ pub struct HitSample {
     /// Index of the sample. If this is `0`, the timing point's sample index will be used instead.
     pub index: u32,
     /// Volume of the sample from 1 to 100. If this is `0`, the timing point's volume will be used instead.
-    pub volume: u8,
+    ///
+    /// # Remarks
+    ///
+    /// Out of my ***13855*** `.osu` files, only [this *one* difficulty of that *one* map](https://osu.ppy.sh/beatmapsets/581729#mania/1231252)
+    /// has *one* hit object with a volume that exceeds 255, at line 2820:
+    /// ```osu
+    /// 448,192,182161,1,0,0:0:0:7100:C3S_s.wav
+    /// ```
+    ///
+    /// Guess I'll store the volume in a u32...
+    pub volume: u32,
     /// Custom filename of the addition sound.
     pub filename: Option<String>,
 }
