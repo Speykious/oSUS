@@ -1,10 +1,9 @@
+use std::error::Error;
 use std::fmt::Display;
 use std::io::{self, Write};
 use std::num::ParseIntError;
 use std::path::Path;
 use std::str::FromStr;
-
-use error_stack::Result;
 
 pub mod deserializing;
 pub mod error;
@@ -12,7 +11,6 @@ pub mod parsing;
 
 use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
-use self::parsing::parse_osu_file;
 use crate::Timestamped;
 
 pub type Timestamp = f64;
@@ -31,7 +29,7 @@ pub enum OverlayPosition {
 impl FromStr for OverlayPosition {
     type Err = InvalidOverlayPositionError;
 
-    fn from_str(op_str: &str) -> core::result::Result<Self, Self::Err> {
+    fn from_str(op_str: &str) -> Result<Self, Self::Err> {
         match op_str {
             "NoChange" => Ok(OverlayPosition::NoChange),
             "Below" => Ok(OverlayPosition::Below),
@@ -357,7 +355,7 @@ impl HitSampleSet {
 impl FromStr for HitSampleSet {
     type Err = InvalidHitSampleSetError;
 
-    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (normal_set, addition_set) = s
             .split_once(':')
             .ok_or_else(|| InvalidHitSampleSetError::from(s))?;
@@ -650,8 +648,8 @@ pub struct BeatmapFile {
 }
 
 impl BeatmapFile {
-    pub fn parse<P: AsRef<Path>>(path: P) -> Result<BeatmapFile, BeatmapFileParseError> {
-        parse_osu_file(path)
+    pub fn parse<P: AsRef<Path>>(_path: P) -> Result<BeatmapFile, Box<dyn Error>> {
+        todo!()
     }
 
     pub fn deserialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {

@@ -1,5 +1,3 @@
-#[macro_use]
-pub mod utils;
 pub mod file;
 
 use std::ops::{RangeBounds, Bound};
