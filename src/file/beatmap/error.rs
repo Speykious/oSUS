@@ -1,159 +1,90 @@
-use std::ffi::{OsString, OsStr};
-
+use miette::{Diagnostic, NamedSource, SourceOffset, SourceSpan};
+use nom::error::{ContextError, ParseError};
+use nom::Offset;
 use thiserror::Error;
 
-#[derive(Clone, Debug, Error)]
-#[error("Invalid overlay position: {op_string:?}. Expected NoChange, Below or Above")]
-pub struct InvalidOverlayPositionError {
-    pub op_string: String,
+#[derive(Debug, Error, Diagnostic)]
+#[error("{kind}")]
+pub struct BeatmapError {
+    /// Source string for the beatmap file that failed to parse.
+    #[source_code]
+    pub input: NamedSource,
+
+    /// Offset in chars of the error.
+    #[label("{}", label.unwrap_or("here"))]
+    pub span: SourceSpan,
+
+    /// Label text for this span. Defaults to `"here"`.
+    pub label: Option<&'static str>,
+
+    /// Suggestion for fixing the parser error.
+    #[help]
+    pub help: Option<&'static str>,
+
+    /// Specific error kind for this parser error.
+    pub kind: BeatmapErrorKind,
 }
 
-impl From<&str> for InvalidOverlayPositionError {
-    fn from(op_str: &str) -> Self {
-        Self {
-            op_string: op_str.to_owned(),
+impl BeatmapError {
+    pub fn from_source_and_parse_error(
+        name: impl AsRef<str>,
+        source: &'static str,
+        error: BeatmapParseError<&str>,
+    ) -> Self {
+        BeatmapError {
+            input: NamedSource::new(name, source),
+            span: SourceSpan::new(
+                SourceOffset::from(source.offset(error.err_span)),
+                SourceOffset::from(error.err_span.len()),
+            ),
+            label: error.label,
+            help: error.help,
+            kind: error.kind.unwrap_or(BeatmapErrorKind::Other),
         }
     }
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Invalid hitsample set: {hss_string:?}; {context}")]
-pub struct InvalidHitSampleSetError {
-    pub hss_string: String,
-    pub context: String,
+#[derive(Clone, Debug, Eq, PartialEq, Error, Diagnostic)]
+pub enum BeatmapErrorKind {
+    #[error("Unknown section {0:?}")]
+    #[diagnostic(code(osu::unknown_section))]
+    UnknownSection(String),
+
+    /// Generic unspecified error. If this is returned, the call site should
+    /// be annotated with context, if possible.
+    #[error("An unspecified error occurred")]
+    #[diagnostic(code(osu::other))]
+    Other,
 }
 
-impl From<&str> for InvalidHitSampleSetError {
-    fn from(op_str: &str) -> Self {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeatmapParseError<I> {
+    pub err_span: I,
+    pub context: Option<&'static str>,
+    pub label: Option<&'static str>,
+    pub help: Option<&'static str>,
+    pub kind: Option<BeatmapErrorKind>,
+}
+
+impl<I> ParseError<I> for BeatmapParseError<I> {
+    fn from_error_kind(input: I, _kind: nom::error::ErrorKind) -> Self {
         Self {
-            hss_string: op_str.to_owned(),
-            context: "expected string of the format \"u8:u8\"".to_owned(),
+            err_span: input,
+            label: None,
+            help: None,
+            context: None,
+            kind: None,
         }
+    }
+
+    fn append(_input: I, _kind: nom::error::ErrorKind, other: Self) -> Self {
+        other
     }
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("Couldn't parse section [{section:?}]")]
-pub struct SectionParseError {
-    pub section: String,
-}
-
-impl From<&str> for SectionParseError {
-    fn from(section: &str) -> Self {
-        Self {
-            section: section.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Field {field} unspecified")]
-pub struct UnspecifiedFieldError {
-    pub field: String,
-}
-
-impl From<&str> for UnspecifiedFieldError {
-    fn from(field: &str) -> Self {
-        Self {
-            field: field.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse event line ({event_line:?})")]
-pub struct EventParseError {
-    pub event_line: String,
-}
-
-impl From<&str> for EventParseError {
-    fn from(event_line: &str) -> Self {
-        Self {
-            event_line: event_line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse timing point ({timing_point_line:?})")]
-pub struct TimingPointParseError {
-    pub timing_point_line: String,
-}
-
-impl From<&str> for TimingPointParseError {
-    fn from(timing_point_line: &str) -> Self {
-        Self {
-            timing_point_line: timing_point_line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse '{color:?}' into a color")]
-pub struct ColorParseError {
-    pub color: String,
-}
-
-impl From<&str> for ColorParseError {
-    fn from(event_line: &str) -> Self {
-        Self {
-            color: event_line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a set of curve points")]
-pub struct CurvePointsParseError {
-    pub line: String,
-}
-
-impl From<&str> for CurvePointsParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a hit-sample")]
-pub struct HitSampleParseError {
-    pub line: String,
-}
-
-impl From<&str> for HitSampleParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse {line:?} into a hit-object")]
-pub struct HitObjectParseError {
-    pub line: String,
-}
-
-impl From<&str> for HitObjectParseError {
-    fn from(line: &str) -> Self {
-        Self {
-            line: line.to_owned(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Error)]
-#[error("Could not parse osu! beatmap file ({filename:?})")]
-pub struct BeatmapFileParseError {
-    pub filename: OsString,
-}
-
-impl From<&OsStr> for BeatmapFileParseError {
-    fn from(filename: &OsStr) -> Self {
-        Self {
-            filename: filename.to_owned(),
-        }
+impl<I> ContextError<I> for BeatmapParseError<I> {
+    fn add_context(_input: I, ctx: &'static str, mut other: Self) -> Self {
+        other.context = other.context.or(Some(ctx));
+        other
     }
 }

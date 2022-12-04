@@ -1,9 +1,7 @@
 use std::error::Error;
 use std::fmt::Display;
 use std::io::{self, Write};
-use std::num::ParseIntError;
 use std::path::Path;
-use std::str::FromStr;
 
 pub mod deserializing;
 pub mod error;
@@ -26,18 +24,18 @@ pub enum OverlayPosition {
     Above,
 }
 
-impl FromStr for OverlayPosition {
-    type Err = InvalidOverlayPositionError;
+// impl FromStr for OverlayPosition {
+//     type Err = InvalidOverlayPositionError;
 
-    fn from_str(op_str: &str) -> Result<Self, Self::Err> {
-        match op_str {
-            "NoChange" => Ok(OverlayPosition::NoChange),
-            "Below" => Ok(OverlayPosition::Below),
-            "Above" => Ok(OverlayPosition::Above),
-            _ => Err(InvalidOverlayPositionError::from(op_str)),
-        }
-    }
-}
+//     fn from_str(op_str: &str) -> Result<Self, Self::Err> {
+//         match op_str {
+//             "NoChange" => Ok(OverlayPosition::NoChange),
+//             "Below" => Ok(OverlayPosition::Below),
+//             "Above" => Ok(OverlayPosition::Above),
+//             _ => Err(InvalidOverlayPositionError::from(op_str)),
+//         }
+//     }
+// }
 
 /// General information about the beatmap
 #[derive(Clone, Debug)]
@@ -352,36 +350,36 @@ impl HitSampleSet {
     }
 }
 
-impl FromStr for HitSampleSet {
-    type Err = InvalidHitSampleSetError;
+// impl FromStr for HitSampleSet {
+//     type Err = InvalidHitSampleSetError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (normal_set, addition_set) = s
-            .split_once(':')
-            .ok_or_else(|| InvalidHitSampleSetError::from(s))?;
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         let (normal_set, addition_set) = s
+//             .split_once(':')
+//             .ok_or_else(|| InvalidHitSampleSetError::from(s))?;
 
-        let normal_set =
-            normal_set
-                .parse()
-                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
-                    hss_string: s.to_owned(),
-                    context: format!("couldn't parse normal_set: {}", e),
-                })?;
+//         let normal_set =
+//             normal_set
+//                 .parse()
+//                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+//                     hss_string: s.to_owned(),
+//                     context: format!("couldn't parse normal_set: {}", e),
+//                 })?;
 
-        let addition_set =
-            addition_set
-                .parse()
-                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
-                    hss_string: s.to_owned(),
-                    context: format!("couldn't parse addition_set: {}", e),
-                })?;
+//         let addition_set =
+//             addition_set
+//                 .parse()
+//                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+//                     hss_string: s.to_owned(),
+//                     context: format!("couldn't parse addition_set: {}", e),
+//                 })?;
 
-        Ok(HitSampleSet {
-            normal_set,
-            addition_set,
-        })
-    }
-}
+//         Ok(HitSampleSet {
+//             normal_set,
+//             addition_set,
+//         })
+//     }
+// }
 
 /// Type of curve used to construct a slider at a particular point.
 #[derive(Clone, Copy, Debug)]
