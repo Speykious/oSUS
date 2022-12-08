@@ -34,12 +34,16 @@ impl BeatmapError {
         BeatmapError {
             input: NamedSource::new(name, source),
             span: SourceSpan::new(
-                SourceOffset::from(source.offset(error.err_span)),
-                SourceOffset::from(error.err_span.len()),
+                SourceOffset::from(source.offset(error.input)),
+                SourceOffset::from(error.len),
             ),
             label: error.label,
             help: error.help,
-            kind: error.kind.unwrap_or(BeatmapErrorKind::Other),
+            kind: if let Some(context) = error.context {
+                BeatmapErrorKind::Context(context)
+            } else {
+                error.kind.unwrap_or(BeatmapErrorKind::Other)
+            },
         }
     }
 }
@@ -50,6 +54,12 @@ pub enum BeatmapErrorKind {
     #[diagnostic(code(osu::unknown_section))]
     UnknownSection(String),
 
+    /// Generic parsing error. The given context string denotes the component
+    /// that failed to parse.
+    #[error("Expected {0}.")]
+    #[diagnostic(code(osu::parse_component))]
+    Context(&'static str),
+
     /// Generic unspecified error. If this is returned, the call site should
     /// be annotated with context, if possible.
     #[error("An unspecified error occurred")]
@@ -59,21 +69,25 @@ pub enum BeatmapErrorKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BeatmapParseError<I> {
-    pub err_span: I,
+    pub input: I,
+    pub len: usize,
     pub context: Option<&'static str>,
     pub label: Option<&'static str>,
     pub help: Option<&'static str>,
     pub kind: Option<BeatmapErrorKind>,
+    pub touched: bool,
 }
 
 impl<I> ParseError<I> for BeatmapParseError<I> {
     fn from_error_kind(input: I, _kind: nom::error::ErrorKind) -> Self {
         Self {
-            err_span: input,
+            input,
+            len: 0,
             label: None,
             help: None,
             context: None,
             kind: None,
+            touched: false,
         }
     }
 

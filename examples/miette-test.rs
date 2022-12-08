@@ -1,5 +1,6 @@
 use miette::Diagnostic;
-use osus::file::beatmap::parsing::{parse_section, Resus};
+use nom::error::context;
+use osus::file::beatmap::parsing::{osu_section_header, Resus};
 use osus::file::beatmap::BeatmapError;
 
 fn log_if_err<T, E>(result: Result<T, E>)
@@ -22,15 +23,19 @@ fn parse(full_input: &'static str, f: fn(&str) -> Resus<&str>) {
     log_if_err(res);
 }
 
+fn parser(input: &str) -> Resus<&str> {
+    context("valid section header", osu_section_header)(input)
+}
+
 fn main() -> miette::Result<()> {
     miette::set_panic_hook();
 
     let full_input = "[Genewrong]\njust some stuff\nhere and there\n";
-    parse(full_input, parse_section);
+    parse(full_input, parser);
 
     // TODO: This error is really not helpful. What should I do?
     let full_input = "Genestillwrong]\njust some stuff\nhere and there\n";
-    parse(full_input, parse_section);
+    parse(full_input, parser);
 
     Ok(())
 }

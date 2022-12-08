@@ -1,6 +1,6 @@
 pub mod file;
 
-use std::ops::{RangeBounds, Bound};
+use std::ops::{Bound, RangeBounds};
 
 use file::beatmap::{HitObject, Timestamp, TimingPoint};
 
