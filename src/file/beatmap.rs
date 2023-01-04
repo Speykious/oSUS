@@ -552,6 +552,8 @@ pub struct HitObject {
     pub time: Timestamp,
     /// Bit flags indicating the type of the object.
     pub object_type: HitObjectType,
+    /// Specifies how many combo colors to skip. `None` if the hit object does not have a new combo.
+    pub combo_color_skip: Option<u8>,
     /// Bit flags indicating the hitsound applied to the object.
     pub hit_sound: u8,
     /// Extra parameters specific to the object's type.
@@ -571,6 +573,8 @@ impl HitObject {
     pub const RAW_TYPE_SPINNER: u8 = 3;
     /// Position of the bit that signifies whether a hit object is an osu!mania hold in its `type` bit flags.
     pub const RAW_TYPE_OSU_MANIA_HOLD: u8 = 7;
+    /// Position of the bit that signifies whether a hit object is on a new combo.
+    pub const RAW_NEW_COMBO: u8 = 2;
 
     fn raw_is_base_type(raw_object_type: u8, base_type: u8) -> bool {
         raw_object_type & (1 << base_type) > 0
@@ -592,6 +596,10 @@ impl HitObject {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_OSU_MANIA_HOLD)
     }
 
+    pub fn raw_is_new_combo(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, HitObject::RAW_NEW_COMBO)
+    }
+
     pub fn is_hit_circle(&self) -> bool {
         self.object_type == HitObjectType::HitCircle
     }
@@ -608,13 +616,23 @@ impl HitObject {
         self.object_type == HitObjectType::Hold
     }
 
+    pub fn is_new_combo(&self) -> bool {
+        self.combo_color_skip.is_some()
+    }
+
     pub fn raw_object_type(&self) -> u8 {
-        match self.object_type {
+        let rt = match self.object_type {
             HitObjectType::HitCircle => Self::RAW_TYPE_HIT_CIRCLE,
             HitObjectType::Slider => Self::RAW_TYPE_SLIDER,
             HitObjectType::Spinner => Self::RAW_TYPE_SPINNER,
             HitObjectType::Hold => Self::RAW_TYPE_OSU_MANIA_HOLD,
-        }
+        };
+
+        let ccskip = self
+            .combo_color_skip
+            .map_or(0, |n| 1 << Self::RAW_NEW_COMBO | (n & 0b111) << 4);
+
+        1 << rt | ccskip
     }
 }
 

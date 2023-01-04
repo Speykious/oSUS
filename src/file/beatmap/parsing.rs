@@ -775,6 +775,9 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
             _ => HitSample::default(),
         };
 
+        let combo_color_skip =
+            HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b01110000) >> 4);
+
         let object_type = match object_params {
             HitObjectParams::HitCircle => HitObjectType::HitCircle,
             HitObjectParams::Slider { .. } => HitObjectType::Slider,
@@ -787,6 +790,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
             y,
             time,
             object_type,
+            combo_color_skip,
             hit_sound,
             object_params,
             hit_sample,
@@ -867,7 +871,10 @@ where
             ))
         })?;
 
-    beatmap.osu_file_format = rctx!(format_version.parse(), BeatmapFileParseError::from(filename))?;
+    beatmap.osu_file_format = rctx!(
+        format_version.parse(),
+        BeatmapFileParseError::from(filename)
+    )?;
 
     // Read file lazily section by section
     if let Some(line) = reader.next() {
