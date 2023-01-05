@@ -604,11 +604,25 @@ fn parse_hit_sample(line: &str) -> Result<HitSample, HitSampleParseError> {
     Ok(hit_sample)
 }
 
-fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseError> {
-    let mut curve_points = Vec::new();
-    let mut curve_type = SliderCurveType::Inherit;
+fn parse_curve_points(
+    line: &str,
+) -> Result<(SliderCurveType, Vec<SliderPoint>), CurvePointsParseError> {
+    let mut curve_tokens = line.split('|');
 
-    for curve_token in line.split('|') {
+    let first_curve_token = curve_tokens
+        .next()
+        .ok_or_else(|| CurvePointsParseError::from(line))?;
+    let first_curve_type = match first_curve_token {
+        "B" => SliderCurveType::Bezier,
+        "C" => SliderCurveType::Catmull,
+        "L" => SliderCurveType::Linear,
+        "P" => SliderCurveType::PerfectCurve,
+        _ => return Err(CurvePointsParseError::from(line).into()),
+    };
+
+    let mut curve_points = Vec::new();
+    let mut curve_type = first_curve_type;
+    for curve_token in curve_tokens {
         match curve_token {
             "B" => curve_type = SliderCurveType::Bezier,
             "C" => curve_type = SliderCurveType::Catmull,
@@ -636,7 +650,7 @@ fn parse_curve_points(line: &str) -> Result<Vec<SliderPoint>, CurvePointsParseEr
         }
     }
 
-    Ok(curve_points)
+    Ok((first_curve_type, curve_points))
 }
 
 fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
@@ -678,7 +692,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                 HitObjectParams::HitCircle
             } else if HitObject::raw_is_slider(object_type) {
                 if let [curve_points, slides, length, leftover @ ..] = object_params {
-                    let curve_points = parse_curve_points(curve_points)
+                    let (first_curve_type, curve_points) = parse_curve_points(curve_points)
                         .change_context_lazy(|| HitObjectParseError::from(line))?;
 
                     let slides = slides
@@ -705,6 +719,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                     }
 
                     HitObjectParams::Slider {
+                        first_curve_type,
                         curve_points,
                         slides,
                         length,

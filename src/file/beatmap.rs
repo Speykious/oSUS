@@ -386,7 +386,7 @@ impl FromStr for HitSampleSet {
 }
 
 /// Type of curve used to construct a slider at a particular point.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SliderCurveType {
     /// inherit the previous point's curve type
     Inherit,
@@ -417,17 +417,29 @@ pub struct SliderPoint {
 pub enum HitObjectParams {
     HitCircle,
     Slider {
+        /// Curve type of the first anchor point.
+        first_curve_type: SliderCurveType,
         /// Anchor points used to construct the slider. Each point is in the format `x:y`.
         ///
         /// Note: the curve type is in this case individual to each point as Lazer allows
         /// sliders to have multiple points of different curve types while Stable doesn't.
-        /// This also seems to be completely bacwards-compatible, so no information is lost.
+        /// This also seems to be completely backwards-compatible, so no information is lost.
         ///
         /// ## Example of slider curve points
         ///
-        /// ```
+        /// ```no_run
         /// P|213:282|P|257:269|234:254|P|158:283|129:306|B|39:234|L|57:105|68:173
         /// ```
+        ///
+        /// Since the head of the slider is actually encoded in the (x, y) fields of the hit object,
+        /// sometimes double letters can appear at the beginning.
+        ///
+        /// For example, this slider has its head in linear curve mode,
+        /// and then the immediate next curve point is in perfect curve mode.
+        /// ```no_run
+        /// L|P|12:392|24:369|76:331
+        /// ```
+        ///
         curve_points: Vec<SliderPoint>,
         /// Amount of times the player has to follow the slider's curve back-and-forth before
         /// the slider is complete. It can also be interpreted as the repeat count plus one.
