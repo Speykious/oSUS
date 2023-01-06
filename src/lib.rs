@@ -91,6 +91,10 @@ pub fn remove_useless_speed_changes(
         }
     }
 
+    if !prev_timing_point_was_added {
+        result_points.push(prev_timing_point.clone());
+    }
+
     result_points
 }
 
