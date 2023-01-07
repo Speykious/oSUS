@@ -2,9 +2,22 @@
 pub mod utils;
 pub mod file;
 
-use std::ops::{RangeBounds, Bound};
+use std::ops::{Bound, RangeBounds};
+use std::time::Duration;
 
-use file::beatmap::{HitObject, Timestamp, TimingPoint};
+use file::beatmap::{BeatmapFile, HitObject, Timestamp, TimingPoint};
+
+pub fn offset_map(beatmap: &mut BeatmapFile, offset: Duration) {
+    let millis = offset.as_millis() as f64;
+
+    for timing_point in &mut beatmap.timing_points {
+        timing_point.time += millis;
+    }
+
+    for hit_object in &mut beatmap.hit_objects {
+        hit_object.time += millis;
+    }
+}
 
 /// Resets all hitsounds in timing points, including volume.
 pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: u8) {
