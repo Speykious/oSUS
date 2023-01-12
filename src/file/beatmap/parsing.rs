@@ -12,8 +12,8 @@ use nom::Offset;
 use crate::to_standardized_path;
 
 use super::{
-    BeatmapErrorKind, BeatmapFile, BeatmapParseError, EditorSection, GeneralSection,
-    MetadataSection,
+    BeatmapErrorKind, BeatmapFile, BeatmapParseError, DifficultySection, EditorSection,
+    GeneralSection, MetadataSection,
 };
 
 pub type Resus<'a, O> = nom::IResult<&'a str, O, BeatmapParseError<&'a str>>;
@@ -199,6 +199,12 @@ pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
         // ignore comments
         let (input, _) = opt(osu_comment)(section_input)?;
 
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
         let (input, field) = cut(osu_section_field)(input)?;
         let (input, value) = take_till(|c| c == '\n')(input)?;
 
@@ -239,12 +245,6 @@ pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
 
         let (input, _) = line_ending(input)?;
 
-        // If there's a line ending, return section
-        let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
-            break input;
-        }
-
         section_input = input;
     };
 
@@ -258,6 +258,12 @@ pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
     let final_input = loop {
         // ignore comments
         let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
 
         let (input, field) = cut(osu_section_field)(input)?;
         let (input, value) = take_till(|c| c == '\n')(input)?;
@@ -273,12 +279,6 @@ pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
 
         let (input, _) = line_ending(input)?;
 
-        // If there's a line ending, return section
-        let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
-            break input;
-        }
-
         section_input = input;
     };
 
@@ -292,6 +292,12 @@ pub fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
     let final_input = loop {
         // ignore comments
         let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
 
         let (input, field) = cut(osu_section_field)(input)?;
         let (input, value) = take_till(|c| c == '\n')(input)?;
@@ -312,12 +318,40 @@ pub fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
 
         let (input, _) = line_ending(input)?;
 
-        // If there's a line ending, return section
+        section_input = input;
+    };
+
+    Ok((final_input, section))
+}
+
+pub fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
+    let mut section = DifficultySection::default();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
         let (input, lend) = opt(line_ending)(input)?;
         if lend.is_some() {
             break input;
         }
 
+        let (input, field) = cut(osu_section_field)(input)?;
+        let (input, value) = take_till(|c| c == '\n')(input)?;
+
+        match field {
+            "HPDrainRate" => section.hp_drain_rate = osu_float(value)?,
+            "CircleSize" => section.circle_size = osu_float(value)?,
+            "OverallDifficulty" => section.overall_difficulty = osu_float(value)?,
+            "ApproachRate" => section.approach_rate = osu_float(value)?,
+            "SliderMultiplier" => section.slider_multiplier = osu_float(value)?,
+            "SliderTickRate" => section.slider_tick_rate = osu_float(value)?,
+            key => log::warn!("[Difficulty] section: unknown field {key:?}"),
+        }
+
+        let (input, _) = line_ending(input)?;
         section_input = input;
     };
 
@@ -354,7 +388,9 @@ pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
                 input
             }
             "Difficulty" => {
-                todo!("Difficulty")
+                let (input, difficulty) = osu_difficulty_section(input)?;
+                beatmap_file.difficulty = Some(difficulty);
+                input
             }
             "Events" => {
                 todo!("Events")
