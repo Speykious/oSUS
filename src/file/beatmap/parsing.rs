@@ -307,22 +307,22 @@ pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
                 input
             }
             "Metadata" => {
-                todo!()
+                todo!("Metadata")
             }
             "Difficulty" => {
-                todo!()
+                todo!("Difficulty")
             }
             "Events" => {
-                todo!()
+                todo!("Events")
             }
             "TimingPoints" => {
-                todo!()
+                todo!("TimingPoints")
             }
             "Colours" => {
-                todo!()
+                todo!("Colours")
             }
             "HitObjects" => {
-                todo!()
+                todo!("HitObjects")
             }
             _ => unreachable!(),
         };
