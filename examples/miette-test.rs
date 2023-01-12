@@ -33,8 +33,10 @@ fn main() -> miette::Result<()> {
     let full_input = "[Genewrong]\njust some stuff\nhere and there\n";
     parse(full_input, parser);
 
-    // TODO: This error is really not helpful. What should I do?
     let full_input = "Genestillwrong]\njust some stuff\nhere and there\n";
+    parse(full_input, parser);
+
+    let full_input = "[Genewrongagain\njust some stuff\nhere and there\n";
     parse(full_input, parser);
 
     Ok(())
