@@ -107,13 +107,13 @@ fn osu_file_format(input: &str) -> Resus<u32> {
             kind: Some(BeatmapErrorKind::UnknownFormatVersion(v)),
             touched: false,
         })),
-        Err(err) => Err(nom::Err::Error(BeatmapParseError {
+        Err(e) => Err(nom::Err::Error(BeatmapParseError {
             input: version,
             len: version.len(),
             context: Some("version number"),
             label: Some("This is not a number"),
             help: None,
-            kind: Some(BeatmapErrorKind::Context("version number")),
+            kind: Some(BeatmapErrorKind::ParseInt(e)),
             touched: false,
         })),
     }
