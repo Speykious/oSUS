@@ -11,7 +11,10 @@ use nom::Offset;
 
 use crate::to_standardized_path;
 
-use super::{BeatmapErrorKind, BeatmapFile, BeatmapParseError, EditorSection, GeneralSection};
+use super::{
+    BeatmapErrorKind, BeatmapFile, BeatmapParseError, EditorSection, GeneralSection,
+    MetadataSection,
+};
 
 pub type Resus<'a, O> = nom::IResult<&'a str, O, BeatmapParseError<&'a str>>;
 
@@ -282,6 +285,45 @@ pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
     Ok((final_input, section))
 }
 
+pub fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
+    let mut section = MetadataSection::default();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        let (input, field) = cut(osu_section_field)(input)?;
+        let (input, value) = take_till(|c| c == '\n')(input)?;
+
+        match field {
+            "Title" => section.title = value.to_owned(),
+            "TitleUnicode" => section.title_unicode = value.to_owned(),
+            "Artist" => section.artist = value.to_owned(),
+            "ArtistUnicode" => section.artist_unicode = value.to_owned(),
+            "Creator" => section.creator = value.to_owned(),
+            "Version" => section.version = value.to_owned(),
+            "Source" => section.source = value.to_owned(),
+            "Tags" => section.tags = value.split(' ').map(|s| s.to_owned()).collect(),
+            "BeatmapID" => section.beatmap_id = Some(osu_int(value)?),
+            "BeatmapSetID" => section.beatmap_set_id = Some(osu_int(value)?),
+            key => log::warn!("[Metadata] section: unknown field {key:?}"),
+        }
+
+        let (input, _) = line_ending(input)?;
+
+        // If there's a line ending, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        section_input = input;
+    };
+
+    Ok((final_input, section))
+}
+
 pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
     let mut beatmap_file = BeatmapFile::default();
 
@@ -307,7 +349,9 @@ pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
                 input
             }
             "Metadata" => {
-                todo!("Metadata")
+                let (input, metadata) = osu_metadata_section(input)?;
+                beatmap_file.metadata = Some(metadata);
+                input
             }
             "Difficulty" => {
                 todo!("Difficulty")
