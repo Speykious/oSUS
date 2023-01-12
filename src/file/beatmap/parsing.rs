@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::{alpha1, digit1, line_ending, multispace0, space0};
-use nom::combinator::cut;
+use nom::combinator::{cut, opt};
 use nom::error::context;
 use nom::Offset;
 
@@ -35,6 +35,9 @@ fn set_details<'a>(
 }
 
 fn osu_file_format(input: &str) -> Resus<u32> {
+    // Ignore invisible UTF8 character if it's there
+    let (input, _) = opt(tag("\u{feff}"))(input)?;
+
     let (input, _) = tag("osu file format v")(input)?;
     let (input, version) = digit1(input)?;
 
@@ -174,49 +177,75 @@ fn osu_bool(value: &str) -> Result<bool, nom::Err<BeatmapParseError<&str>>> {
     })? != 0)
 }
 
+fn osu_comment(input: &str) -> Resus<&str> {
+    let (input, _) = space0(input)?;
+    let (input, _) = tag("//")(input)?;
+    let (input, _) = space0(input)?;
+    let (input, comment) = take_till(|c| c == '\n')(input)?;
+    let (input, _) = line_ending(input)?;
+    Ok((input, comment))
+}
+
 pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
     let mut section = GeneralSection::default();
 
     // TODO: while loop to get all fields into section
-    let (input, field) = cut(osu_section_field)(input)?;
-    let (input, value) = take_till(|c| c == '\n')(input)?;
 
-    match field {
-        "AudioFilename" => section.audio_filename = to_standardized_path(value),
-        "AudioLeadIn" => section.audio_lead_in = osu_int(value)?,
-        "AudioHash" => section.audio_hash = Some(value.to_owned()),
-        "PreviewTime" => section.preview_time = osu_float(value)?,
-        "Countdown" => section.countdown = osu_int(value)?,
-        "SampleSet" => section.sample_set = value.to_owned(),
-        "StackLeniency" => section.stack_leniency = osu_float(value)?,
-        "Mode" => section.mode = osu_int(value)?,
-        "LetterboxInBreaks" => section.letterbox_in_breaks = osu_bool(value)?,
-        "StoryFireInFront" => section.story_fire_in_front = osu_bool(value)?,
-        "UseSkinSprites" => section.use_skin_sprites = osu_bool(value)?,
-        "AlwaysShowPlayfield" => section.always_show_playfield = osu_bool(value)?,
-        "OverlayPosition" => {
-            section.overlay_position = value.parse().map_err(|e| {
-                nom::Err::Error(BeatmapParseError {
-                    input: value,
-                    len: value.len(),
-                    context: Some("known overlay position"),
-                    label: Some("Unknown overlay position"),
-                    help: Some("Known overlay positions are NoChange, Below and Above"),
-                    kind: Some(BeatmapErrorKind::InvalidOverlayPosition(e)),
-                    touched: false,
-                })
-            })?;
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        let (input, field) = cut(osu_section_field)(input)?;
+        let (input, value) = take_till(|c| c == '\n')(input)?;
+
+        match field {
+            "AudioFilename" => section.audio_filename = to_standardized_path(value),
+            "AudioLeadIn" => section.audio_lead_in = osu_int(value)?,
+            "AudioHash" => section.audio_hash = Some(value.to_owned()),
+            "PreviewTime" => section.preview_time = osu_float(value)?,
+            "Countdown" => section.countdown = osu_int(value)?,
+            "SampleSet" => section.sample_set = value.to_owned(),
+            "StackLeniency" => section.stack_leniency = osu_float(value)?,
+            "Mode" => section.mode = osu_int(value)?,
+            "LetterboxInBreaks" => section.letterbox_in_breaks = osu_bool(value)?,
+            "StoryFireInFront" => section.story_fire_in_front = osu_bool(value)?,
+            "UseSkinSprites" => section.use_skin_sprites = osu_bool(value)?,
+            "AlwaysShowPlayfield" => section.always_show_playfield = osu_bool(value)?,
+            "OverlayPosition" => {
+                section.overlay_position = value.parse().map_err(|e| {
+                    nom::Err::Error(BeatmapParseError {
+                        input: value,
+                        len: value.len(),
+                        context: Some("known overlay position"),
+                        label: Some("Unknown overlay position"),
+                        help: Some("Known overlay positions are NoChange, Below and Above"),
+                        kind: Some(BeatmapErrorKind::InvalidOverlayPosition(e)),
+                        touched: false,
+                    })
+                })?;
+            }
+            "SkinPreference" => section.skin_preference = Some(value.to_owned()),
+            "EpilepsyWarning" => section.epilepsy_warning = osu_bool(value)?,
+            "CountdownOffset" => section.countdown_offset = osu_int(value)?,
+            "SpecialStyle" => section.special_style = osu_bool(value)?,
+            "WidescreenStoryboard" => section.widescreen_storyboard = osu_bool(value)?,
+            "SamplesMatchPlaybackRate" => section.samples_match_playback_rate = osu_bool(value)?,
+            key => log::warn!("[General] section: unknown field {key:?}"),
         }
-        "SkinPreference" => section.skin_preference = Some(value.to_owned()),
-        "EpilepsyWarning" => section.epilepsy_warning = osu_bool(value)?,
-        "CountdownOffset" => section.countdown_offset = osu_int(value)?,
-        "SpecialStyle" => section.special_style = osu_bool(value)?,
-        "WidescreenStoryboard" => section.widescreen_storyboard = osu_bool(value)?,
-        "SamplesMatchPlaybackRate" => section.samples_match_playback_rate = osu_bool(value)?,
-        key => log::warn!("[General] section: unknown field {key:?}"),
-    }
 
-    Ok((input, section))
+        let (input, _) = line_ending(input)?;
+
+        // If there's a line ending, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+        
+        section_input = input;
+    };
+
+    Ok((final_input, section))
 }
 
 pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {

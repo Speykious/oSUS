@@ -1,4 +1,4 @@
-use std::num::{ParseIntError, ParseFloatError};
+use std::num::{ParseFloatError, ParseIntError};
 
 use miette::{Diagnostic, NamedSource, SourceOffset, SourceSpan};
 use nom::error::{ContextError, ParseError};
@@ -28,13 +28,13 @@ pub struct BeatmapError {
 }
 
 impl BeatmapError {
-    pub fn from_source_and_parse_error(
+    pub fn from_src_and_parse_error(
         name: impl AsRef<str>,
-        source: &'static str,
+        source: &str,
         error: BeatmapParseError<&str>,
     ) -> Self {
         BeatmapError {
-            input: NamedSource::new(name, source),
+            input: NamedSource::new(name, source.to_owned()),
             span: SourceSpan::new(
                 SourceOffset::from(source.offset(error.input)),
                 SourceOffset::from(error.len),
