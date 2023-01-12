@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::io::{self, Write};
 use std::path::Path;
+use std::str::FromStr;
 
 pub mod deserializing;
 pub mod error;
@@ -24,18 +25,18 @@ pub enum OverlayPosition {
     Above,
 }
 
-// impl FromStr for OverlayPosition {
-//     type Err = InvalidOverlayPositionError;
+impl FromStr for OverlayPosition {
+    type Err = InvalidOverlayPositionError;
 
-//     fn from_str(op_str: &str) -> Result<Self, Self::Err> {
-//         match op_str {
-//             "NoChange" => Ok(OverlayPosition::NoChange),
-//             "Below" => Ok(OverlayPosition::Below),
-//             "Above" => Ok(OverlayPosition::Above),
-//             _ => Err(InvalidOverlayPositionError::from(op_str)),
-//         }
-//     }
-// }
+    fn from_str(op_str: &str) -> Result<Self, Self::Err> {
+        match op_str {
+            "NoChange" => Ok(OverlayPosition::NoChange),
+            "Below" => Ok(OverlayPosition::Below),
+            "Above" => Ok(OverlayPosition::Above),
+            _ => Err(InvalidOverlayPositionError::from(op_str)),
+        }
+    }
+}
 
 /// General information about the beatmap
 #[derive(Clone, Debug)]

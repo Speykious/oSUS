@@ -117,3 +117,7 @@ impl<T: Timestamped> TimestampedSlice<T> for &[T] {
         &self[start_index..end_index]
     }
 }
+
+pub fn to_standardized_path(path: &str) -> String {
+    path.replace('\\', "/")
+}

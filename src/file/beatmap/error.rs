@@ -1,3 +1,5 @@
+use std::num::{ParseIntError, ParseFloatError};
+
 use miette::{Diagnostic, NamedSource, SourceOffset, SourceSpan};
 use nom::error::{ContextError, ParseError};
 use nom::Offset;
@@ -54,6 +56,22 @@ pub enum BeatmapErrorKind {
     #[diagnostic(code(osu::unknown_section))]
     UnknownSection(String),
 
+    #[error("Unknown format version ({0})")]
+    #[diagnostic(code(osu::unknown_format_version))]
+    UnknownFormatVersion(u32),
+
+    #[error(transparent)]
+    #[diagnostic(code(osu::invalid_overlay_position))]
+    InvalidOverlayPosition(#[from] InvalidOverlayPositionError),
+
+    #[error(transparent)]
+    #[diagnostic(code(osu::parse_int))]
+    ParseInt(#[from] ParseIntError),
+
+    #[error(transparent)]
+    #[diagnostic(code(osu::parse_float))]
+    ParseFloat(#[from] ParseFloatError),
+
     /// Generic parsing error. The given context string denotes the component
     /// that failed to parse.
     #[error("Expected {0}.")]
@@ -100,5 +118,19 @@ impl<I> ContextError<I> for BeatmapParseError<I> {
     fn add_context(_input: I, ctx: &'static str, mut other: Self) -> Self {
         other.context = other.context.or(Some(ctx));
         other
+    }
+}
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[error("Invalid overlay position: {op_string:?}. Expected NoChange, Below or Above")]
+pub struct InvalidOverlayPositionError {
+    pub op_string: String,
+}
+
+impl From<&str> for InvalidOverlayPositionError {
+    fn from(op_str: &str) -> Self {
+        Self {
+            op_string: op_str.to_owned(),
+        }
     }
 }
