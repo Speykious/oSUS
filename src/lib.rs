@@ -5,7 +5,7 @@ pub mod file;
 use std::ops::{Bound, RangeBounds};
 use std::time::Duration;
 
-use file::beatmap::{BeatmapFile, HitObject, Timestamp, TimingPoint};
+use file::beatmap::{BeatmapFile, HitObject, HitObjectParams, Timestamp, TimingPoint};
 
 pub fn offset_map(beatmap: &mut BeatmapFile, offset: Duration) {
     let millis = offset.as_millis() as f64;
@@ -16,6 +16,9 @@ pub fn offset_map(beatmap: &mut BeatmapFile, offset: Duration) {
 
     for hit_object in &mut beatmap.hit_objects {
         hit_object.time += millis;
+        if let HitObjectParams::Spinner { end_time } = &mut hit_object.object_params {
+            *end_time += millis;
+        }
     }
 }
 
