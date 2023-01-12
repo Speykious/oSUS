@@ -146,7 +146,7 @@ fn osu_section_name(input: &str) -> Resus<&str> {
     })
 }
 
-pub fn osu_section_header(input: &str) -> Resus<&str> {
+fn osu_section_header(input: &str) -> Resus<&str> {
     let (input, _) = tag("[")(input)?;
     let (input, section_name) = cut(osu_section_name)(input)?;
     let (input, _) =
@@ -191,7 +191,7 @@ fn osu_section_field(input: &str) -> Resus<&str> {
     Ok((input, field))
 }
 
-pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
+fn osu_general_section(input: &str) -> Resus<GeneralSection> {
     let mut section = GeneralSection::default();
 
     let mut section_input = input;
@@ -251,7 +251,7 @@ pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
     Ok((final_input, section))
 }
 
-pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
+fn osu_editor_section(input: &str) -> Resus<EditorSection> {
     let mut section = EditorSection::default();
 
     let mut section_input = input;
@@ -285,7 +285,7 @@ pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
     Ok((final_input, section))
 }
 
-pub fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
+fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
     let mut section = MetadataSection::default();
 
     let mut section_input = input;
@@ -324,7 +324,7 @@ pub fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
     Ok((final_input, section))
 }
 
-pub fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
+fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
     let mut section = DifficultySection::default();
 
     let mut section_input = input;
