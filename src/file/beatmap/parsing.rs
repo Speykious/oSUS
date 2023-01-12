@@ -5,6 +5,8 @@ use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::{alpha1, digit1, line_ending, multispace0, space0};
 use nom::combinator::{cut, opt};
 use nom::error::context;
+use nom::multi::separated_list1;
+use nom::number::complete::float;
 use nom::Offset;
 
 use crate::to_standardized_path;
@@ -247,9 +249,37 @@ pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
 }
 
 pub fn osu_editor_section(input: &str) -> Resus<EditorSection> {
-    let (input, section_field) = cut(osu_section_field)(input)?;
+    let mut section = EditorSection::default();
 
-    todo!()
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        let (input, field) = cut(osu_section_field)(input)?;
+        let (input, value) = take_till(|c| c == '\n')(input)?;
+
+        match field {
+            "Bookmarks" => section.bookmarks = separated_list1(tag(","), float)(value)?.1,
+            "DistanceSpacing" => section.distance_spacing = osu_float(value)?,
+            "BeatDivisor" => section.beat_divisor = osu_float(value)?,
+            "GridSize" => section.grid_size = osu_int(value)?,
+            "TimelineZoom" => section.timeline_zoom = Some(osu_float(value)?),
+            key => log::warn!("[Editor] section: unknown field {key:?}"),
+        }
+
+        let (input, _) = line_ending(input)?;
+
+        // If there's a line ending, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        section_input = input;
+    };
+
+    Ok((final_input, section))
 }
 
 pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {

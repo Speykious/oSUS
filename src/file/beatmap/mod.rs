@@ -118,7 +118,7 @@ impl Default for GeneralSection {
 }
 
 /// Saved settings for the beatmap editor
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EditorSection {
     /// Time in milliseconds of bookmarks
     pub bookmarks: Vec<f32>,
