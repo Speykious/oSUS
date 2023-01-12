@@ -34,6 +34,61 @@ fn set_details<'a>(
     err
 }
 
+fn osu_int<T: FromStr<Err = ParseIntError>>(
+    value: &str,
+) -> Result<T, nom::Err<BeatmapParseError<&str>>> {
+    value.parse().map_err(|e| {
+        nom::Err::Error(BeatmapParseError {
+            input: value,
+            len: value.len(),
+            context: Some("integer"),
+            label: Some("This is not an integer"),
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseInt(e)),
+            touched: false,
+        })
+    })
+}
+
+fn osu_float<T: FromStr<Err = ParseFloatError>>(
+    value: &str,
+) -> Result<T, nom::Err<BeatmapParseError<&str>>> {
+    value.parse().map_err(|e| {
+        nom::Err::Error(BeatmapParseError {
+            input: value,
+            len: value.len(),
+            context: Some("floating number"),
+            label: Some("This is not a floating number"),
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseFloat(e)),
+            touched: false,
+        })
+    })
+}
+
+fn osu_bool(value: &str) -> Result<bool, nom::Err<BeatmapParseError<&str>>> {
+    Ok(value.parse::<u8>().map_err(|e| {
+        nom::Err::Error(BeatmapParseError {
+            input: value,
+            len: value.len(),
+            context: Some("valid boolean value"),
+            label: Some("This is not a valid boolean value"),
+            help: Some("0 means false and 1 means true"),
+            kind: Some(BeatmapErrorKind::ParseInt(e)),
+            touched: false,
+        })
+    })? != 0)
+}
+
+fn osu_comment(input: &str) -> Resus<&str> {
+    let (input, _) = space0(input)?;
+    let (input, _) = tag("//")(input)?;
+    let (input, _) = space0(input)?;
+    let (input, comment) = take_till(|c| c == '\n')(input)?;
+    let (input, _) = line_ending(input)?;
+    Ok((input, comment))
+}
+
 fn osu_file_format(input: &str) -> Resus<u32> {
     // Ignore invisible UTF8 character if it's there
     let (input, _) = opt(tag("\u{feff}"))(input)?;
@@ -131,65 +186,8 @@ fn osu_section_field(input: &str) -> Resus<&str> {
     Ok((input, field))
 }
 
-fn osu_int<T: FromStr<Err = ParseIntError>>(
-    value: &str,
-) -> Result<T, nom::Err<BeatmapParseError<&str>>> {
-    value.parse().map_err(|e| {
-        nom::Err::Error(BeatmapParseError {
-            input: value,
-            len: value.len(),
-            context: Some("integer"),
-            label: Some("This is not an integer"),
-            help: None,
-            kind: Some(BeatmapErrorKind::ParseInt(e)),
-            touched: false,
-        })
-    })
-}
-
-fn osu_float<T: FromStr<Err = ParseFloatError>>(
-    value: &str,
-) -> Result<T, nom::Err<BeatmapParseError<&str>>> {
-    value.parse().map_err(|e| {
-        nom::Err::Error(BeatmapParseError {
-            input: value,
-            len: value.len(),
-            context: Some("floating number"),
-            label: Some("This is not a floating number"),
-            help: None,
-            kind: Some(BeatmapErrorKind::ParseFloat(e)),
-            touched: false,
-        })
-    })
-}
-
-fn osu_bool(value: &str) -> Result<bool, nom::Err<BeatmapParseError<&str>>> {
-    Ok(value.parse::<u8>().map_err(|e| {
-        nom::Err::Error(BeatmapParseError {
-            input: value,
-            len: value.len(),
-            context: Some("valid boolean value"),
-            label: Some("This is not a valid boolean value"),
-            help: Some("0 means false and 1 means true"),
-            kind: Some(BeatmapErrorKind::ParseInt(e)),
-            touched: false,
-        })
-    })? != 0)
-}
-
-fn osu_comment(input: &str) -> Resus<&str> {
-    let (input, _) = space0(input)?;
-    let (input, _) = tag("//")(input)?;
-    let (input, _) = space0(input)?;
-    let (input, comment) = take_till(|c| c == '\n')(input)?;
-    let (input, _) = line_ending(input)?;
-    Ok((input, comment))
-}
-
 pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
     let mut section = GeneralSection::default();
-
-    // TODO: while loop to get all fields into section
 
     let mut section_input = input;
     let final_input = loop {
@@ -241,7 +239,7 @@ pub fn osu_general_section(input: &str) -> Resus<GeneralSection> {
         if lend.is_some() {
             break input;
         }
-        
+
         section_input = input;
     };
 
