@@ -12,8 +12,9 @@ use nom::Offset;
 use crate::to_standardized_path;
 
 use super::{
-    BeatmapErrorKind, BeatmapFile, BeatmapParseError, DifficultySection, EditorSection,
-    GeneralSection, MetadataSection,
+    BeatmapErrorKind, BeatmapFile, BeatmapParseError, Color, ColorsSection, DifficultySection,
+    EditorSection, Event, EventParams, GeneralSection, MetadataSection, ParseListError,
+    TimingPoint,
 };
 
 pub type Resus<'a, O> = nom::IResult<&'a str, O, BeatmapParseError<&'a str>>;
@@ -358,6 +359,351 @@ fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
     Ok((final_input, section))
 }
 
+fn osu_event(input: &str) -> Resus<Option<Event>> {
+    let (input, line) = take_till(|c| c == '\n')(input)?;
+
+    let mut values = line.split(',');
+    let event_type: String = values
+        .next()
+        .ok_or({
+            nom::Err::Error(BeatmapParseError {
+                input: line,
+                len: line.len(),
+                context: Some("a valid event"),
+                label: Some("This is not a valid event"),
+                help: None,
+                kind: Some(BeatmapErrorKind::Context("a valid event")),
+                touched: false,
+            })
+        })?
+        .trim()
+        .to_owned();
+
+    // Ignoring storyboard events
+    match event_type.as_str() {
+        "3" | "4" | "5" | "6" | "Sample" | "Sprite" | "Animation" | "F" | "M" | "MX" | "MY"
+        | "S" | "V" | "R" | "C" | "L" | "T" | "P" => {
+            log::info!("Ignoring storyboard event {:?}", line);
+            return Ok((input, None));
+        }
+        _ => (),
+    }
+
+    let start_time: f64 = {
+        let value = values.next().ok_or({
+            nom::Err::Error(BeatmapParseError {
+                input: line,
+                len: line.len(),
+                context: Some("an event with a start time"),
+                label: Some("This event does not have a start time"),
+                help: None,
+                kind: Some(BeatmapErrorKind::Context("an event with a start time")),
+                touched: false,
+            })
+        })?;
+
+        osu_float(value)?
+    };
+
+    let params: EventParams = match event_type.as_str() {
+        "0" => {
+            let filename = values
+                .next()
+                .ok_or({
+                    nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: Some("a background event with a file name"),
+                        label: Some("This background event does not have a file name"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::Context(
+                            "a background event with a file name",
+                        )),
+                        touched: false,
+                    })
+                })?
+                .to_owned();
+
+            let x_offset: i32 = osu_int(values.next().unwrap_or("0"))?;
+            let y_offset: i32 = osu_int(values.next().unwrap_or("0"))?;
+
+            EventParams::Background {
+                filename,
+                x_offset,
+                y_offset,
+            }
+        }
+        "1" | "Video" => {
+            let filename = values
+                .next()
+                .ok_or({
+                    nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: Some("a video event with a file name"),
+                        label: Some("This video event does not have a file name"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::Context("a video event with a file name")),
+                        touched: false,
+                    })
+                })?
+                .to_owned();
+
+            let x_offset: i32 = osu_int(values.next().unwrap_or("0"))?;
+            let y_offset: i32 = osu_int(values.next().unwrap_or("0"))?;
+
+            EventParams::Video {
+                filename,
+                x_offset,
+                y_offset,
+            }
+        }
+        "2" | "Break" => {
+            let end_time: f64 = {
+                let value = values.next().ok_or({
+                    nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: Some("a break event with an end time"),
+                        label: Some("This break event does not have an end time"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::Context("a break event with an end time")),
+                        touched: false,
+                    })
+                })?;
+
+                osu_float(value)?
+            };
+
+            EventParams::Break { end_time }
+        }
+        t => {
+            return Err(nom::Err::Error(BeatmapParseError {
+                input: line,
+                len: line.len(),
+                context: None,
+                label: None,
+                help: None,
+                kind: Some(BeatmapErrorKind::UnknownEvent(t.to_owned())),
+                touched: false,
+            }));
+        }
+    };
+
+    Ok((
+        input,
+        Some(Event {
+            event_type,
+            start_time,
+            params,
+        }),
+    ))
+}
+
+fn osu_events_section(input: &str) -> Resus<Vec<Event>> {
+    let mut events = Vec::new();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        let (input, event) = osu_event(input)?;
+        if let Some(event) = event {
+            events.push(event);
+        }
+
+        let (input, _) = line_ending(input)?;
+        section_input = input;
+    };
+
+    Ok((final_input, events))
+}
+
+fn osu_timing_point(input: &str) -> Resus<TimingPoint> {
+    let (input, line) = take_till(|c| c == '\n')(input)?;
+
+    let values = line.split(',').collect::<Vec<_>>();
+
+    if values.len() < 2 {
+        return Err(nom::Err::Error(BeatmapParseError {
+            input: line,
+            len: line.len(),
+            context: None,
+            label: None,
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                2,
+                values.len(),
+            ))),
+            touched: false,
+        }));
+    }
+    if values.len() > 8 {
+        return Err(nom::Err::Error(BeatmapParseError {
+            input: line,
+            len: line.len(),
+            context: None,
+            label: None,
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooManyValues(
+                8,
+                values.len(),
+            ))),
+            touched: false,
+        }));
+    }
+
+    let mut timing_point = TimingPoint::default();
+    let mut values = values.into_iter();
+
+    if let Some(time) = values.next() {
+        timing_point.time = osu_float(time)?;
+    }
+    if let Some(beat_length) = values.next() {
+        timing_point.beat_length = osu_float(beat_length)?;
+    }
+    if let Some(meter) = values.next() {
+        timing_point.meter = osu_int(meter)?;
+    }
+    if let Some(sample_set) = values.next() {
+        timing_point.sample_set = osu_int(sample_set)?;
+    }
+    if let Some(sample_index) = values.next() {
+        timing_point.sample_index = osu_int(sample_index)?;
+    }
+    if let Some(volume) = values.next() {
+        timing_point.volume = osu_int(volume)?;
+    }
+    if let Some(uninherited) = values.next() {
+        timing_point.uninherited = osu_bool(uninherited)?;
+    }
+    if let Some(effects) = values.next() {
+        timing_point.effects = osu_int(effects)?;
+    }
+
+    Ok((input, timing_point))
+}
+
+fn osu_timing_points_section(input: &str) -> Resus<Vec<TimingPoint>> {
+    let mut timing_points = Vec::new();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        let (input, timing_point) = osu_timing_point(input)?;
+        timing_points.push(timing_point);
+
+        let (input, _) = line_ending(input)?;
+        section_input = input;
+    };
+
+    Ok((final_input, timing_points))
+}
+
+fn osu_color(input: &str) -> Resus<Color> {
+    let (input, line) = take_till(|c| c == '\n')(input)?;
+
+    let values = line.split(',').collect::<Vec<_>>();
+
+    if values.len() < 3 {
+        return Err(nom::Err::Error(BeatmapParseError {
+            input: line,
+            len: line.len(),
+            context: None,
+            label: None,
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                3,
+                values.len(),
+            ))),
+            touched: false,
+        }));
+    }
+    if values.len() > 4 {
+        return Err(nom::Err::Error(BeatmapParseError {
+            input: line,
+            len: line.len(),
+            context: None,
+            label: None,
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooManyValues(
+                4,
+                values.len(),
+            ))),
+            touched: false,
+        }));
+    }
+
+    let mut values = values.into_iter();
+    let r = osu_int(values.next().unwrap())?;
+    let g = osu_int(values.next().unwrap())?;
+    let b = osu_int(values.next().unwrap())?;
+    let a = values.next().map(osu_int).transpose()?;
+
+    Ok((input, Color { r, g, b, a }))
+}
+
+fn osu_colors_section(input: &str) -> Resus<ColorsSection> {
+    let mut section = ColorsSection::default();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        let (input, field) = cut(osu_section_field)(input)?;
+        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (_, color) = osu_color(value)?;
+
+        if field.starts_with("Combo") {
+            // NOTE: This doesn't take into account the actual written index of the combo color.
+            section.combo_colors.push(color);
+        } else {
+            match field {
+                "SliderTrackOverride" => section.slider_track_override = Some(color),
+                "SliderBorder" => section.slider_border = Some(color),
+                field => {
+                    return Err(nom::Err::Error(BeatmapParseError {
+                        input: value,
+                        len: value.len(),
+                        context: None,
+                        label: None,
+                        help: None,
+                        kind: Some(BeatmapErrorKind::UnknownColorField(field.to_owned())),
+                        touched: false,
+                    }));
+                }
+            }
+        }
+
+        let (input, _) = line_ending(input)?;
+        section_input = input;
+    };
+
+    Ok((final_input, section))
+}
+
 pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
     let mut beatmap_file = BeatmapFile::default();
 
@@ -393,13 +739,19 @@ pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
                 input
             }
             "Events" => {
-                todo!("Events")
+                let (input, events) = osu_events_section(input)?;
+                beatmap_file.events = events;
+                input
             }
             "TimingPoints" => {
-                todo!("TimingPoints")
+                let (input, timing_points) = osu_timing_points_section(input)?;
+                beatmap_file.timing_points = timing_points;
+                input
             }
             "Colours" => {
-                todo!("Colours")
+                let (input, colors) = osu_colors_section(input)?;
+                beatmap_file.colors = Some(colors);
+                input
             }
             "HitObjects" => {
                 todo!("HitObjects")

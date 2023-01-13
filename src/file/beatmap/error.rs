@@ -60,6 +60,14 @@ pub enum BeatmapErrorKind {
     #[diagnostic(code(osu::unknown_format_version))]
     UnknownFormatVersion(u32),
 
+    #[error("Unknown event {0:?}")]
+    #[diagnostic(code(osu::unknown_event))]
+    UnknownEvent(String),
+
+    #[error("Unknown color field {0:?}")]
+    #[diagnostic(code(osu::unknown_color_field))]
+    UnknownColorField(String),
+
     #[error(transparent)]
     #[diagnostic(code(osu::invalid_overlay_position))]
     InvalidOverlayPosition(#[from] InvalidOverlayPositionError),
@@ -72,6 +80,10 @@ pub enum BeatmapErrorKind {
     #[diagnostic(code(osu::parse_float))]
     ParseFloat(#[from] ParseFloatError),
 
+    #[error(transparent)]
+    #[diagnostic(code(osu::parse_list))]
+    ParseList(#[from] ParseListError),
+
     /// Generic parsing error. The given context string denotes the component
     /// that failed to parse.
     #[error("Expected {0}.")]
@@ -83,6 +95,16 @@ pub enum BeatmapErrorKind {
     #[error("An unspecified error occurred")]
     #[diagnostic(code(osu::other))]
     Other,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Error, Diagnostic)]
+pub enum ParseListError {
+    #[error("Expected at least {0} values, got {1}")]
+    #[diagnostic(code(osu::parse_list::too_few_values))]
+    TooFewValues(usize, usize),
+    #[error("Expected at most {0} values, got {1}")]
+    #[diagnostic(code(osu::parse_list::too_many_values))]
+    TooManyValues(usize, usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
