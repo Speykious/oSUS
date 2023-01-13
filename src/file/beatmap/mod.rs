@@ -351,37 +351,6 @@ impl HitSampleSet {
     }
 }
 
-// impl FromStr for HitSampleSet {
-//     type Err = InvalidHitSampleSetError;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let (normal_set, addition_set) = s
-//             .split_once(':')
-//             .ok_or_else(|| InvalidHitSampleSetError::from(s))?;
-
-//         let normal_set =
-//             normal_set
-//                 .parse()
-//                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
-//                     hss_string: s.to_owned(),
-//                     context: format!("couldn't parse normal_set: {}", e),
-//                 })?;
-
-//         let addition_set =
-//             addition_set
-//                 .parse()
-//                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
-//                     hss_string: s.to_owned(),
-//                     context: format!("couldn't parse addition_set: {}", e),
-//                 })?;
-
-//         Ok(HitSampleSet {
-//             normal_set,
-//             addition_set,
-//         })
-//     }
-// }
-
 /// Type of curve used to construct a slider at a particular point.
 #[derive(Clone, Copy, Debug)]
 pub enum SliderCurveType {

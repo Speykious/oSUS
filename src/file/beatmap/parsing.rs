@@ -13,7 +13,8 @@ use crate::to_standardized_path;
 
 use super::{
     BeatmapErrorKind, BeatmapFile, BeatmapParseError, Color, ColorsSection, DifficultySection,
-    EditorSection, Event, EventParams, GeneralSection, MetadataSection, ParseListError,
+    EditorSection, Event, EventParams, GeneralSection, HitObject, HitObjectParams, HitObjectType,
+    HitSample, HitSampleSet, MetadataSection, ParseListError, SliderCurveType, SliderPoint,
     TimingPoint,
 };
 
@@ -704,6 +705,336 @@ fn osu_colors_section(input: &str) -> Resus<ColorsSection> {
     Ok((final_input, section))
 }
 
+fn osu_hit_sample(value: &str) -> Result<HitSample, nom::Err<BeatmapParseError<&str>>> {
+    let args = value.split(':').collect::<Vec<_>>();
+    let hit_sample = if let [normal_set, addition_set, leftover @ ..] = &args[..] {
+        let normal_set = osu_int(normal_set)?;
+        let addition_set = osu_int(addition_set)?;
+
+        let mut index = 0;
+        let mut volume = 0;
+        let mut filename = None;
+        if let [idx, vol, filn] = leftover {
+            index = osu_int(idx)?;
+            volume = osu_int(vol)?;
+
+            if !filn.is_empty() {
+                filename = Some((*filn).to_owned());
+            }
+        }
+
+        HitSample {
+            normal_set,
+            addition_set,
+            index,
+            volume,
+            filename,
+        }
+    } else {
+        return Err(nom::Err::Error(BeatmapParseError {
+            input: value,
+            len: value.len(),
+            context: None,
+            label: None,
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooManyValues(
+                5,
+                args.len(),
+            ))),
+            touched: false,
+        }));
+    };
+
+    Ok(hit_sample)
+}
+
+fn osu_curve_points(
+    value: &str,
+) -> Result<(SliderCurveType, Vec<SliderPoint>), nom::Err<BeatmapParseError<&str>>> {
+    let mut curve_tokens = value.split('|');
+
+    let first_curve_token = curve_tokens.next().ok_or({
+        nom::Err::Error(BeatmapParseError {
+            input: value,
+            len: value.len(),
+            context: Some("the first curve token"),
+            label: Some("These curve points"),
+            help: None,
+            kind: Some(BeatmapErrorKind::Context("the first curve token")),
+            touched: false,
+        })
+    })?;
+
+    let first_curve_type = match first_curve_token {
+        "B" => SliderCurveType::Bezier,
+        "C" => SliderCurveType::Catmull,
+        "L" => SliderCurveType::Linear,
+        "P" => SliderCurveType::PerfectCurve,
+        sct => {
+            return Err(nom::Err::Error(BeatmapParseError {
+                input: first_curve_token,
+                len: first_curve_token.len(),
+                context: None,
+                label: Some("This slider curve type doesn't exist"),
+                help: None,
+                kind: Some(BeatmapErrorKind::UnknownSliderCurveType(sct.to_owned())),
+                touched: false,
+            }));
+        }
+    };
+
+    let mut curve_points = Vec::new();
+    let mut curve_type = first_curve_type;
+    for curve_token in curve_tokens {
+        match curve_token {
+            "B" => curve_type = SliderCurveType::Bezier,
+            "C" => curve_type = SliderCurveType::Catmull,
+            "L" => curve_type = SliderCurveType::Linear,
+            "P" => curve_type = SliderCurveType::PerfectCurve,
+            _ => {
+                let (x, y) = curve_token.split_once(':').ok_or({
+                    nom::Err::Error(BeatmapParseError {
+                        input: value,
+                        len: value.len(),
+                        context: Some("a valid curve token"),
+                        label: None,
+                        help: None,
+                        kind: Some(BeatmapErrorKind::InvalidSliderCurveToken),
+                        touched: false,
+                    })
+                })?;
+
+                let x = osu_int(x)?;
+                let y = osu_int(y)?;
+                curve_points.push(SliderPoint { curve_type, x, y });
+
+                curve_type = SliderCurveType::Inherit;
+            }
+        }
+    }
+
+    Ok((first_curve_type, curve_points))
+}
+
+fn osu_hit_object(input: &str) -> Resus<HitObject> {
+    let (input, line) = take_till(|c| c == '\n')(input)?;
+
+    let args = line.split(',').collect::<Vec<_>>();
+    if let [x, y, time, object_type_str, hit_sound, object_params @ ..] = &args[..] {
+        let x = osu_int(x)?;
+        let y = osu_int(y)?;
+        let time = osu_float(time)?;
+        let object_type = osu_int(object_type_str)?;
+        let hit_sound = osu_int(hit_sound)?;
+
+        let mut hit_sample_leftover: Option<&str> = None;
+
+        let object_params = {
+            if HitObject::raw_is_hit_circle(object_type) {
+                if let [hit_sample] = object_params {
+                    hit_sample_leftover = Some(*hit_sample);
+                }
+
+                HitObjectParams::HitCircle
+            } else if HitObject::raw_is_slider(object_type) {
+                if let [curve_points, slides, length, leftover @ ..] = object_params {
+                    let (first_curve_type, curve_points) = osu_curve_points(curve_points)?;
+                    let slides = osu_int(slides)?;
+                    let length = osu_float(length)?;
+
+                    let mut edge_hitsounds = Vec::new();
+                    let mut edge_samplesets = Vec::new();
+                    if let [ehitsounds, esamplesets, hit_sample] = leftover {
+                        for ehitsound in ehitsounds.split('|') {
+                            edge_hitsounds.push(osu_int(ehitsound)?);
+                        }
+
+                        for esampleset in esamplesets.split('|') {
+                            let Some((normal_set, addition_set)) = esampleset.split_once(':') else {
+                                return Err(nom::Err::Error(BeatmapParseError {
+                                    input: esampleset,
+                                    len: esampleset.len(),
+                                    context: None,
+                                    label: None,
+                                    help: Some("A hit-sample set is of the form `normalSet:additionSet`"),
+                                    kind: Some(BeatmapErrorKind::InvalidHitSampleSet),
+                                    touched: false,
+                                }));
+                            };
+
+                            let normal_set = osu_int(normal_set)?;
+                            let addition_set = osu_int(addition_set)?;
+
+                            edge_samplesets.push(HitSampleSet {
+                                normal_set,
+                                addition_set,
+                            });
+                        }
+
+                        hit_sample_leftover = Some(*hit_sample);
+                    }
+
+                    HitObjectParams::Slider {
+                        // first_curve_type,
+                        curve_points,
+                        slides,
+                        length,
+                        edge_hitsounds,
+                        edge_samplesets,
+                    }
+                } else {
+                    return Err(nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: None,
+                        label: Some("Too few object params for a slider"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                            3,
+                            object_params.len(),
+                        ))),
+                        touched: false,
+                    }));
+                }
+            } else if HitObject::raw_is_spinner(object_type) {
+                if let [end_time, leftover @ ..] = object_params {
+                    let end_time = osu_float(end_time)?;
+
+                    if let [hit_sample] = leftover {
+                        hit_sample_leftover = Some(*hit_sample);
+                    }
+
+                    HitObjectParams::Spinner { end_time }
+                } else {
+                    return Err(nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: None,
+                        label: Some("Too few object params for a spinner"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                            1,
+                            object_params.len(),
+                        ))),
+                        touched: false,
+                    }));
+                }
+            } else if HitObject::raw_is_osu_mania_hold(object_type) {
+                if let [leftover] = object_params {
+                    let Some((end_time, hit_sample)) = leftover.split_once(':') else {
+                        return Err(nom::Err::Error(BeatmapParseError {
+                            input: leftover,
+                            len: leftover.len(),
+                            context: None,
+                            label: None,
+                            help: None,
+                            kind: Some(BeatmapErrorKind::InvalidOsuManiaHold),
+                            touched: false,
+                        }));
+                    };
+
+                    if !hit_sample.is_empty() {
+                        hit_sample_leftover = Some(hit_sample);
+                    }
+
+                    let end_time = osu_float(end_time)?;
+                    HitObjectParams::Hold { end_time }
+                } else {
+                    return Err(nom::Err::Error(BeatmapParseError {
+                        input: line,
+                        len: line.len(),
+                        context: None,
+                        label: Some("Too few object params for an osu!mania hold"),
+                        help: None,
+                        kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                            1,
+                            object_params.len(),
+                        ))),
+                        touched: false,
+                    }));
+                }
+            } else {
+                return Err(nom::Err::Error(BeatmapParseError {
+                    input: object_type_str,
+                    len: object_type_str.len(),
+                    context: None,
+                    label: Some("This hit object type doesn't exist"),
+                    help: None,
+                    kind: Some(BeatmapErrorKind::UnknownHitObjectType(object_type)),
+                    touched: false,
+                }));
+            }
+        };
+
+        let hit_sample = match hit_sample_leftover {
+            Some("") => HitSample::default(),
+            Some(hit_sample_leftover) => osu_hit_sample(hit_sample_leftover)?,
+            _ => HitSample::default(),
+        };
+
+        // let combo_color_skip =
+        //        HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b01110000) >> 4);
+
+        let object_type = match object_params {
+            HitObjectParams::HitCircle => HitObjectType::HitCircle,
+            HitObjectParams::Slider { .. } => HitObjectType::Slider,
+            HitObjectParams::Spinner { .. } => HitObjectType::Spinner,
+            HitObjectParams::Hold { .. } => HitObjectType::Hold,
+        };
+
+        Ok((
+            input,
+            HitObject {
+                x,
+                y,
+                time,
+                object_type,
+                // combo_color_skip,
+                hit_sound,
+                object_params,
+                hit_sample,
+            },
+        ))
+    } else {
+        Err(nom::Err::Error(BeatmapParseError {
+            input: line,
+            len: line.len(),
+            context: None,
+            label: Some("Invalid hit object"),
+            help: None,
+            kind: Some(BeatmapErrorKind::ParseList(ParseListError::TooFewValues(
+                7,
+                args.len(),
+            ))),
+            touched: false,
+        }))
+    }
+}
+
+fn osu_hit_objects_section(input: &str) -> Resus<Vec<HitObject>> {
+    let mut hit_objects = Vec::new();
+
+    let mut section_input = input;
+    let final_input = loop {
+        // ignore comments
+        let (input, _) = opt(osu_comment)(section_input)?;
+
+        // If there's an empty line, return section
+        let (input, lend) = opt(line_ending)(input)?;
+        if lend.is_some() {
+            break input;
+        }
+
+        let (input, hit_object) = osu_hit_object(input)?;
+        hit_objects.push(hit_object);
+
+        let (input, _) = line_ending(input)?;
+        section_input = input;
+    };
+
+    Ok((final_input, hit_objects))
+}
+
 pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
     let mut beatmap_file = BeatmapFile::default();
 
@@ -754,7 +1085,9 @@ pub fn osu_beatmap(input: &str) -> Resus<BeatmapFile> {
                 input
             }
             "HitObjects" => {
-                todo!("HitObjects")
+                let (input, hit_objects) = osu_hit_objects_section(input)?;
+                beatmap_file.hit_objects = hit_objects;
+                input
             }
             _ => unreachable!(),
         };

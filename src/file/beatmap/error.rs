@@ -68,6 +68,26 @@ pub enum BeatmapErrorKind {
     #[diagnostic(code(osu::unknown_color_field))]
     UnknownColorField(String),
 
+    #[error("Unknown slider curve type {0:?}")]
+    #[diagnostic(code(osu::unknown_slider_curve_type))]
+    UnknownSliderCurveType(String),
+
+    #[error("Unknown hit object type ({0})")]
+    #[diagnostic(code(osu::unknown_hit_object_type))]
+    UnknownHitObjectType(u8),
+
+    #[error("Invalid slider curve token")]
+    #[diagnostic(code(osu::invalid_slider_curve_token))]
+    InvalidSliderCurveToken,
+
+    #[error("Invalid hit-sample set")]
+    #[diagnostic(code(osu::invalid_hit_sample_set))]
+    InvalidHitSampleSet,
+
+    #[error("Invalid osu!mania hold")]
+    #[diagnostic(code(osu::invalid_osu_mania_hold))]
+    InvalidOsuManiaHold,
+
     #[error(transparent)]
     #[diagnostic(code(osu::invalid_overlay_position))]
     InvalidOverlayPosition(#[from] InvalidOverlayPositionError),
