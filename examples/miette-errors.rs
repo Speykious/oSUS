@@ -42,7 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             let file_name = path.file_name().unwrap().to_str().unwrap();
             println!("Parsing {}", file_name);
             let full_input = read_to_string(path)?;
-            println!("Start of the file: {:?}...", &full_input[..20]);
             parse(&full_input, parser);
         }
     }
