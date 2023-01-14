@@ -874,7 +874,7 @@ fn osu_hit_object(input: &str) -> Resus<HitObject> {
                     }
 
                     HitObjectParams::Slider {
-                        // first_curve_type,
+                        first_curve_type,
                         curve_points,
                         slides,
                         length,
@@ -971,8 +971,8 @@ fn osu_hit_object(input: &str) -> Resus<HitObject> {
             _ => HitSample::default(),
         };
 
-        // let combo_color_skip =
-        //        HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b01110000) >> 4);
+        let combo_color_skip =
+            HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b01110000) >> 4);
 
         let object_type = match object_params {
             HitObjectParams::HitCircle => HitObjectType::HitCircle,
@@ -988,7 +988,7 @@ fn osu_hit_object(input: &str) -> Resus<HitObject> {
                 y,
                 time,
                 object_type,
-                // combo_color_skip,
+                combo_color_skip,
                 hit_sound,
                 object_params,
                 hit_sample,
