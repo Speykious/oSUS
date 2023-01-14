@@ -1,8 +1,24 @@
 pub mod file;
 
 use std::ops::{Bound, RangeBounds};
+use std::time::Duration;
 
-use file::beatmap::{HitObject, Timestamp, TimingPoint};
+use file::beatmap::{BeatmapFile, HitObject, HitObjectParams, Timestamp, TimingPoint};
+
+pub fn offset_map(beatmap: &mut BeatmapFile, offset: Duration) {
+    let millis = offset.as_millis() as f64;
+
+    for timing_point in &mut beatmap.timing_points {
+        timing_point.time += millis;
+    }
+
+    for hit_object in &mut beatmap.hit_objects {
+        hit_object.time += millis;
+        if let HitObjectParams::Spinner { end_time } = &mut hit_object.object_params {
+            *end_time += millis;
+        }
+    }
+}
 
 /// Resets all hitsounds in timing points, including volume.
 pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: u8) {
@@ -87,6 +103,10 @@ pub fn remove_useless_speed_changes(
             prev_timing_point = timing_point;
             prev_timing_point_was_added = false;
         }
+    }
+
+    if !prev_timing_point_was_added {
+        result_points.push(prev_timing_point.clone());
     }
 
     result_points

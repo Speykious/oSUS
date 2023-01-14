@@ -194,6 +194,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             writeln!(writer, ",{}", hit_sample.to_osu_string())
         }
         HitObjectParams::Slider {
+            first_curve_type,
             curve_points,
             slides,
             length,
@@ -215,6 +216,18 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
                     SliderCurveType::Linear => "L|",
                     SliderCurveType::PerfectCurve => "P|",
                 };
+
+                if !started && curve_type != first_curve_type {
+                    let preprefix = match first_curve_type {
+                        SliderCurveType::Inherit => "",
+                        SliderCurveType::Bezier => "B|",
+                        SliderCurveType::Catmull => "C|",
+                        SliderCurveType::Linear => "L|",
+                        SliderCurveType::PerfectCurve => "P|",
+                    };
+                    write!(writer, "{preprefix}")?;
+                }
+
                 write!(writer, "{prefix}{x}:{y}")?;
                 started = true;
             }
