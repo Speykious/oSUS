@@ -33,7 +33,8 @@ fn parser(input: &str) -> Resus<BeatmapFile> {
 fn main() -> Result<(), Box<dyn Error>> {
     miette::set_panic_hook();
 
-    for entry in WalkDir::new("map-samples")
+    for entry in WalkDir::new("maps")
+        .max_depth(10)
         .into_iter()
         .filter_map(Result::ok)
     {
