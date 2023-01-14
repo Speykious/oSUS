@@ -2,21 +2,16 @@ use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
 use nom::bytes::complete::{tag, take_till};
-use nom::character::complete::{alpha1, digit1, line_ending, multispace0, space0};
+use nom::character::complete::{alpha1, alphanumeric1, digit1, line_ending, multispace0, space0};
 use nom::combinator::{cut, opt};
 use nom::error::context;
-use nom::multi::separated_list1;
+use nom::multi::{many0, separated_list1};
 use nom::number::complete::float;
 use nom::Offset;
 
 use crate::to_standardized_path;
 
-use super::{
-    BeatmapErrorKind, BeatmapFile, BeatmapParseError, Color, ColorsSection, DifficultySection,
-    EditorSection, Event, EventParams, GeneralSection, HitObject, HitObjectParams, HitObjectType,
-    HitSample, HitSampleSet, MetadataSection, ParseListError, SliderCurveType, SliderPoint,
-    TimingPoint,
-};
+use super::*;
 
 pub type Resus<'a, O> = nom::IResult<&'a str, O, BeatmapParseError<&'a str>>;
 
@@ -41,6 +36,10 @@ fn set_details<'a>(
     err
 }
 
+fn is_line_ending(c: char) -> bool {
+    c == '\n' || c == '\r'
+}
+
 fn osu_int<T: FromStr<Err = ParseIntError>>(
     value: &str,
 ) -> Result<T, nom::Err<BeatmapParseError<&str>>> {
@@ -48,7 +47,7 @@ fn osu_int<T: FromStr<Err = ParseIntError>>(
         nom::Err::Error(BeatmapParseError {
             input: value,
             len: value.len(),
-            context: Some("integer"),
+            context: None,
             label: Some("This is not an integer"),
             help: None,
             kind: Some(BeatmapErrorKind::ParseInt(e)),
@@ -91,7 +90,7 @@ fn osu_comment(input: &str) -> Resus<&str> {
     let (input, _) = space0(input)?;
     let (input, _) = tag("//")(input)?;
     let (input, _) = space0(input)?;
-    let (input, comment) = take_till(|c| c == '\n')(input)?;
+    let (input, comment) = take_till(is_line_ending)(input)?;
     let (input, _) = line_ending(input)?;
     Ok((input, comment))
 }
@@ -177,7 +176,7 @@ fn osu_section_header(input: &str) -> Resus<&str> {
 }
 
 fn osu_section_field(input: &str) -> Resus<&str> {
-    let (input, field) = alpha1(input).map_err(|e| {
+    let (input, field) = alphanumeric1(input).map_err(|e| {
         set_details(
             e,
             &input[..1],
@@ -199,16 +198,16 @@ fn osu_general_section(input: &str) -> Resus<GeneralSection> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
         let (input, field) = cut(osu_section_field)(input)?;
-        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (input, value) = take_till(is_line_ending)(input)?;
 
         match field {
             "AudioFilename" => section.audio_filename = to_standardized_path(value),
@@ -259,16 +258,16 @@ fn osu_editor_section(input: &str) -> Resus<EditorSection> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
         let (input, field) = cut(osu_section_field)(input)?;
-        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (input, value) = take_till(is_line_ending)(input)?;
 
         match field {
             "Bookmarks" => section.bookmarks = separated_list1(tag(","), float)(value)?.1,
@@ -293,16 +292,16 @@ fn osu_metadata_section(input: &str) -> Resus<MetadataSection> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
         let (input, field) = cut(osu_section_field)(input)?;
-        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (input, value) = take_till(is_line_ending)(input)?;
 
         match field {
             "Title" => section.title = value.to_owned(),
@@ -332,16 +331,16 @@ fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
         let (input, field) = cut(osu_section_field)(input)?;
-        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (input, value) = take_till(is_line_ending)(input)?;
 
         match field {
             "HPDrainRate" => section.hp_drain_rate = osu_float(value)?,
@@ -361,7 +360,7 @@ fn osu_difficulty_section(input: &str) -> Resus<DifficultySection> {
 }
 
 fn osu_event(input: &str) -> Resus<Option<Event>> {
-    let (input, line) = take_till(|c| c == '\n')(input)?;
+    let (input, line) = take_till(is_line_ending)(input)?;
 
     let mut values = line.split(',');
     let event_type: String = values
@@ -507,11 +506,11 @@ fn osu_events_section(input: &str) -> Resus<Vec<Event>> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
@@ -528,7 +527,7 @@ fn osu_events_section(input: &str) -> Resus<Vec<Event>> {
 }
 
 fn osu_timing_point(input: &str) -> Resus<TimingPoint> {
-    let (input, line) = take_till(|c| c == '\n')(input)?;
+    let (input, line) = take_till(is_line_ending)(input)?;
 
     let values = line.split(',').collect::<Vec<_>>();
 
@@ -598,11 +597,11 @@ fn osu_timing_points_section(input: &str) -> Resus<Vec<TimingPoint>> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
@@ -617,7 +616,7 @@ fn osu_timing_points_section(input: &str) -> Resus<Vec<TimingPoint>> {
 }
 
 fn osu_color(input: &str) -> Resus<Color> {
-    let (input, line) = take_till(|c| c == '\n')(input)?;
+    let (input, line) = take_till(is_line_ending)(input)?;
 
     let values = line.split(',').collect::<Vec<_>>();
 
@@ -665,16 +664,16 @@ fn osu_colors_section(input: &str) -> Resus<ColorsSection> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
         let (input, field) = cut(osu_section_field)(input)?;
-        let (input, value) = take_till(|c| c == '\n')(input)?;
+        let (input, value) = take_till(is_line_ending)(input)?;
         let (_, color) = osu_color(value)?;
 
         if field.starts_with("Combo") {
@@ -817,7 +816,7 @@ fn osu_curve_points(
 }
 
 fn osu_hit_object(input: &str) -> Resus<HitObject> {
-    let (input, line) = take_till(|c| c == '\n')(input)?;
+    let (input, line) = take_till(is_line_ending)(input)?;
 
     let args = line.split(',').collect::<Vec<_>>();
     if let [x, y, time, object_type_str, hit_sound, object_params @ ..] = &args[..] {
@@ -1017,11 +1016,11 @@ fn osu_hit_objects_section(input: &str) -> Resus<Vec<HitObject>> {
     let mut section_input = input;
     let final_input = loop {
         // ignore comments
-        let (input, _) = opt(osu_comment)(section_input)?;
+        let (input, _) = many0(osu_comment)(section_input)?;
 
-        // If there's an empty line, return section
+        // If there's an empty line or eof, return section
         let (input, lend) = opt(line_ending)(input)?;
-        if lend.is_some() {
+        if lend.is_some() || input.is_empty() {
             break input;
         }
 
