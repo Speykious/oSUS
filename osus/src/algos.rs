@@ -1,19 +1,15 @@
-use std::time::Duration;
-
 use crate::TimestampedSlice;
 use crate::file::beatmap::{BeatmapFile, HitObject, HitObjectParams, TimingPoint};
 
-pub fn offset_map(beatmap: &mut BeatmapFile, offset: Duration) {
-    let millis = offset.as_millis() as f64;
-
+pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
     for timing_point in &mut beatmap.timing_points {
-        timing_point.time += millis;
+        timing_point.time += offset_millis;
     }
 
     for hit_object in &mut beatmap.hit_objects {
-        hit_object.time += millis;
+        hit_object.time += offset_millis;
         if let HitObjectParams::Spinner { end_time } = &mut hit_object.object_params {
-            *end_time += millis;
+            *end_time += offset_millis;
         }
     }
 }
