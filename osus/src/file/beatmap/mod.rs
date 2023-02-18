@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt;
 use std::io::{self, Write};
 use std::num::ParseIntError;
 use std::path::Path;
@@ -496,8 +496,8 @@ pub enum HitObjectType {
     Hold,
 }
 
-impl Display for HitObjectType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for HitObjectType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             HitObjectType::HitCircle => "hit circle",
             HitObjectType::Slider => "slider",
@@ -553,6 +553,42 @@ impl HitSample {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct HitSound(u8);
+
+impl fmt::Display for HitSound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for HitSound {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(HitSound(u8::from_str(s)?))
+    }
+}
+
+impl HitSound {
+    pub fn has_normal(&self) -> bool {
+        self.0 & 0b0001 > 0
+    }
+
+    pub fn has_whistle(&self) -> bool {
+        self.0 & 0b0010 > 0
+    }
+
+    pub fn has_finish(&self) -> bool {
+        self.0 & 0b0100 > 0
+    }
+
+    pub fn has_clap(&self) -> bool {
+        self.0 & 0b1000 > 0
+    }
+}
+
 /// Hit object
 #[derive(Clone, Debug)]
 pub struct HitObject {
@@ -567,7 +603,7 @@ pub struct HitObject {
     /// Specifies how many combo colors to skip. `None` if the hit object does not have a new combo.
     pub combo_color_skip: Option<u8>,
     /// Bit flags indicating the hitsound applied to the object.
-    pub hit_sound: u8,
+    pub hit_sound: HitSound,
     /// Extra parameters specific to the object's type.
     pub object_params: HitObjectParams,
     /// Information about which samples are played when the object is hit.
