@@ -29,7 +29,7 @@ pub fn deserialize_general_section<W: Write>(
         writeln!(writer, "OverlayPosition: {:?}", section.overlay_position)?;
     }
     if let Some(skin_preference) = &section.skin_preference {
-        writeln!(writer, "SkinPreference: {}", skin_preference)?;
+        writeln!(writer, "SkinPreference: {skin_preference}")?;
     }
     if section.epilepsy_warning {
         writeln!(
@@ -70,7 +70,7 @@ pub fn deserialize_editor_section<W: Write>(
     writeln!(writer, "BeatDivisor: {}", section.beat_divisor)?;
     writeln!(writer, "GridSize: {}", section.grid_size)?;
     if let Some(timeline_zoom) = section.timeline_zoom {
-        writeln!(writer, "TimelineZoom: {}", timeline_zoom)?;
+        writeln!(writer, "TimelineZoom: {timeline_zoom}")?;
     }
     writeln!(writer)
 }
@@ -91,10 +91,10 @@ pub fn deserialize_metadata_section<W: Write>(
         writeln!(writer, "Tags: {}", section.tags.join(" "))?;
     }
     if let Some(beatmap_id) = section.beatmap_id {
-        writeln!(writer, "BeatmapID: {}", beatmap_id)?;
+        writeln!(writer, "BeatmapID: {beatmap_id}")?;
     }
     if let Some(beatmap_set_id) = section.beatmap_set_id {
-        writeln!(writer, "BeatmapSetID: {}", beatmap_set_id)?;
+        writeln!(writer, "BeatmapSetID: {beatmap_set_id}")?;
     }
     writeln!(writer)
 }
@@ -121,7 +121,7 @@ pub fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<
             x_offset,
             y_offset,
         } => {
-            writeln!(writer, "{},{},{}", filename, x_offset, y_offset)
+            writeln!(writer, "{filename},{x_offset},{y_offset}")
         }
         EventParams::Video {
             filename,
@@ -231,7 +231,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
                 write!(writer, "{prefix}{x}:{y}")?;
                 started = true;
             }
-            write!(writer, ",{},{}", slides, length)?;
+            write!(writer, ",{slides},{length}")?;
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
                 let edge_hitsounds: Vec<_> = edge_hitsounds.iter().map(u8::to_string).collect();
                 let edge_samplesets: Vec<_> = edge_samplesets

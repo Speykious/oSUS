@@ -367,7 +367,7 @@ impl FromStr for HitSampleSet {
                 .parse()
                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
                     hss_string: s.to_owned(),
-                    context: format!("couldn't parse normal_set: {}", e),
+                    context: format!("couldn't parse normal_set: {e}"),
                 })?;
 
         let addition_set =
@@ -375,7 +375,7 @@ impl FromStr for HitSampleSet {
                 .parse()
                 .map_err(|e: ParseIntError| InvalidHitSampleSetError {
                     hss_string: s.to_owned(),
-                    context: format!("couldn't parse addition_set: {}", e),
+                    context: format!("couldn't parse addition_set: {e}"),
                 })?;
 
         Ok(HitSampleSet {
