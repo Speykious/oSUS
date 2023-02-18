@@ -1,6 +1,7 @@
 [package]
 name = "osus"
 version = "0.1.0"
+description = "Library for various osu! utilities and scripts."
 authors = ["Speykious <speykious@gmail.com>"]
 edition = "2021"
 
