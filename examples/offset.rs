@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use osus::file::beatmap::BeatmapFile;
-use osus::offset_map;
+use osus::algos::offset_map;
 
 #[derive(Parser)]
 #[command(name = "offset")]

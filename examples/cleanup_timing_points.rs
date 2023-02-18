@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use osus::file::beatmap::BeatmapFile;
-use osus::{remove_duplicates, remove_useless_speed_changes};
+use osus::algos::{remove_duplicates, remove_useless_speed_changes};
 
 #[derive(Parser)]
 #[command(name = "cleanup-timing-points")]

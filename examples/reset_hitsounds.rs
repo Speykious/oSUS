@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use osus::file::beatmap::BeatmapFile;
-use osus::reset_hitsounds;
+use osus::algos::reset_hitsounds;
 
 #[derive(Parser)]
 #[command(name = "reset-hitsounds")]
