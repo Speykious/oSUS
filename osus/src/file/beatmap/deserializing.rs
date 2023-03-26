@@ -233,7 +233,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             }
             write!(writer, ",{slides},{length}")?;
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
-                let edge_hitsounds: Vec<_> = edge_hitsounds.iter().map(u8::to_string).collect();
+                let edge_hitsounds: Vec<_> = edge_hitsounds.iter().map(HitSound::to_string).collect();
                 let edge_samplesets: Vec<_> = edge_samplesets
                     .iter()
                     .map(HitSampleSet::to_osu_string)

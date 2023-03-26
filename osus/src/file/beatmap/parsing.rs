@@ -709,7 +709,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                     let mut edge_hitsounds = Vec::new();
                     let mut edge_samplesets = Vec::new();
                     if let [ehitsounds, esamplesets, hit_sample] = leftover {
-                        edge_hitsounds = parse_list_of_with_sep::<u8, _>(ehitsounds, '|')
+                        edge_hitsounds = parse_list_of_with_sep::<HitSound, _>(ehitsounds, '|')
                             .change_context_lazy(|| HitObjectParseError::from(line))?;
 
                         edge_samplesets =

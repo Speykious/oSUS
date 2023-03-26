@@ -449,7 +449,7 @@ pub enum HitObjectParams {
         /// Hitsounds that play when hitting edges of the slider's curve.
         /// The first sound is the one that plays when the slider is first clicked,
         /// and the last sound is the one that plays when the slider's end is hit.
-        edge_hitsounds: Vec<u8>,
+        edge_hitsounds: Vec<HitSound>,
         /// Sample sets used for the edge hitounds.
         /// Each set is in the format `normal_set:addition_set`, with the same meaning as in the hitsounds section.
         edge_samplesets: Vec<HitSampleSet>,
