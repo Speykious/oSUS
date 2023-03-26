@@ -536,9 +536,9 @@ impl fmt::Display for HitObjectType {
 #[derive(Clone, Debug, Default)]
 pub struct HitSample {
     /// Sample set of the normal sound.
-    pub normal_set: u8,
+    pub normal_set: SampleBank,
     /// Sample set of the whistle, finish, and clap sounds.
-    pub addition_set: u8,
+    pub addition_set: SampleBank,
     /// Index of the sample. If this is `0`, the timing point's sample index will be used instead.
     pub index: u32,
     /// Volume of the sample from 1 to 100. If this is `0`, the timing point's volume will be used instead.
@@ -568,7 +568,9 @@ impl HitSample {
         } = self;
 
         format!(
-            "{normal_set}:{addition_set}:{index}:{volume}:{}",
+            "{}:{}:{index}:{volume}:{}",
+            *normal_set as u8,
+            *addition_set as u8,
             if let Some(filename) = filename {
                 filename.as_str()
             } else {
