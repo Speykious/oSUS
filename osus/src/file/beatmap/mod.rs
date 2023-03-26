@@ -336,12 +336,37 @@ pub struct ColorsSection {
     pub slider_border: Option<Color>,
 }
 
+/// A bank of samples for normal, whistle, finish and clap hitsounds.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(u8)]
+pub enum SampleBank {
+    #[default]
+    Auto = 0,
+    Normal = 1,
+    Soft = 2,
+    Drum = 3,
+}
+
+impl FromStr for SampleBank {
+    type Err = InvalidSampleBankError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "0" => Ok(SampleBank::Auto),
+            "1" => Ok(SampleBank::Normal),
+            "2" => Ok(SampleBank::Soft),
+            "3" => Ok(SampleBank::Drum),
+            s => Err(InvalidSampleBankError::from(s)),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct HitSampleSet {
     /// Sample set of the normal sound.
-    pub normal_set: u8,
+    pub normal_set: SampleBank,
     /// Sample set of the whistle, finish, and clap sounds.
-    pub addition_set: u8,
+    pub addition_set: SampleBank,
 }
 
 impl HitSampleSet {
@@ -349,8 +374,8 @@ impl HitSampleSet {
         let HitSampleSet {
             normal_set,
             addition_set,
-        } = self;
-        format!("{normal_set}:{addition_set}")
+        } = *self;
+        format!("{}:{}", normal_set as u8, addition_set as u8)
     }
 }
 
@@ -365,7 +390,7 @@ impl FromStr for HitSampleSet {
         let normal_set =
             normal_set
                 .parse()
-                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+                .map_err(|e: InvalidSampleBankError| InvalidHitSampleSetError {
                     hss_string: s.to_owned(),
                     context: format!("couldn't parse normal_set: {e}"),
                 })?;
@@ -373,7 +398,7 @@ impl FromStr for HitSampleSet {
         let addition_set =
             addition_set
                 .parse()
-                .map_err(|e: ParseIntError| InvalidHitSampleSetError {
+                .map_err(|e: InvalidSampleBankError| InvalidHitSampleSetError {
                     hss_string: s.to_owned(),
                     context: format!("couldn't parse addition_set: {e}"),
                 })?;

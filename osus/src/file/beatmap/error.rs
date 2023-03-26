@@ -17,6 +17,16 @@ impl From<&str> for InvalidOverlayPositionError {
 }
 
 #[derive(Clone, Debug, Error)]
+#[error("Invalid sample bank: expected number between 0 and 3, got {0:?}")]
+pub struct InvalidSampleBankError(String);
+
+impl From<&str> for InvalidSampleBankError {
+    fn from(op_str: &str) -> Self {
+        Self(op_str.to_owned())
+    }
+}
+
+#[derive(Clone, Debug, Error)]
 #[error("Invalid hitsample set: {hss_string:?}; {context}")]
 pub struct InvalidHitSampleSetError {
     pub hss_string: String,
