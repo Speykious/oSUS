@@ -572,6 +572,50 @@ impl FromStr for HitSound {
 }
 
 impl HitSound {
+    pub fn flags_string_verbose(&self) -> String {
+        let mut sflags = "(hs)".to_owned();
+
+        if self.has_normal() {
+            sflags += " normal";
+        }
+
+        if self.has_whistle() {
+            sflags += " whistle";
+        }
+
+        if self.has_finish() {
+            sflags += " finish";
+        }
+
+        if self.has_clap() {
+            sflags += " clap";
+        }
+
+        sflags
+    }
+
+    pub fn flags_string(&self) -> String {
+        let mut sflags = "(".to_owned();
+
+        if self.has_normal() {
+            sflags += "N";
+        }
+
+        if self.has_whistle() {
+            sflags += "W";
+        }
+
+        if self.has_finish() {
+            sflags += "F";
+        }
+
+        if self.has_clap() {
+            sflags += "C";
+        }
+
+        sflags + ")"
+    }
+
     pub fn has_normal(&self) -> bool {
         self.0 & 0b0001 > 0
     }
