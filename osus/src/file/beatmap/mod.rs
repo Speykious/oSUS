@@ -8,6 +8,7 @@ use error_stack::Result;
 
 pub mod deserializing;
 pub mod error;
+pub mod iters;
 pub mod parsing;
 
 use self::deserializing::deserialize_beatmap_file;
