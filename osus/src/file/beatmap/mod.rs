@@ -643,6 +643,16 @@ impl HitSound {
         sflags + ")"
     }
 
+    pub fn fixed_flags_string(&self) -> String {
+        format!(
+            "({}{}{}{})",
+            if self.has_normal() { "N" } else { "." },
+            if self.has_whistle() { "W" } else { "." },
+            if self.has_finish() { "F" } else { "." },
+            if self.has_clap() { "C" } else { "." },
+        )
+    }
+
     pub fn has_normal(&self) -> bool {
         self.0 & 0b0001 > 0
     }
