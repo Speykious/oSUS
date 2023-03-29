@@ -3,40 +3,41 @@ use crate::Timestamped;
 use super::{BeatmapFile, HitObject, TimingPoint};
 
 impl BeatmapFile {
-    pub fn iter_hit_objects_and_timing_points(&self) -> HitObjectTimingPointIterator {
-        HitObjectTimingPointIterator {
-            hit_objects: &self.hit_objects,
-            timing_points: &self.timing_points,
-        }
+    pub fn iter_hit_objects_and_timing_points(&self) -> InterleavedTimestampedIterator<HitObject, TimingPoint> {
+        InterleavedTimestampedIterator(&self.hit_objects, &self.timing_points)
     }
 }
 
-pub struct HitObjectTimingPointIterator<'a> {
-    hit_objects: &'a [HitObject],
-    timing_points: &'a [TimingPoint],
-}
+pub struct InterleavedTimestampedIterator<'a, 'b, T, U>(&'a [T], &'b [U])
+where
+    T: Timestamped,
+    U: Timestamped;
 
-impl<'a> Iterator for HitObjectTimingPointIterator<'a> {
-    type Item = std::result::Result<&'a HitObject, &'a TimingPoint>;
+impl<'a, 'b, T, U> Iterator for InterleavedTimestampedIterator<'a, 'b, T, U>
+where
+    T: Timestamped,
+    U: Timestamped,
+{
+    type Item = std::result::Result<&'a T, &'b U>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (&self.hit_objects, &self.timing_points) {
-            (&[hit_object, ref remaining_ho @ ..], &[timing_point, ref remaining_tp @ ..]) => {
-                if hit_object.timestamp() < timing_point.timestamp() {
-                    self.hit_objects = remaining_ho;
-                    Some(Ok(hit_object))
+        match (&self.0, &self.1) {
+            (&[fst, ref remaining_fst @ ..], &[snd, ref remaining_snd @ ..]) => {
+                if fst.timestamp() < snd.timestamp() {
+                    self.0 = remaining_fst;
+                    Some(Ok(fst))
                 } else {
-                    self.timing_points = remaining_tp;
-                    Some(Err(timing_point))
+                    self.1 = remaining_snd;
+                    Some(Err(snd))
                 }
             }
-            (&[hit_object, ref remaining @ ..], &[]) => {
-                self.hit_objects = remaining;
-                Some(Ok(hit_object))
+            (&[fst, ref remaining @ ..], &[]) => {
+                self.0 = remaining;
+                Some(Ok(fst))
             }
-            (&[], &[timing_point, ref remaining @ ..]) => {
-                self.timing_points = remaining;
-                Some(Err(timing_point))
+            (&[], &[snd, ref remaining @ ..]) => {
+                self.1 = remaining;
+                Some(Err(snd))
             }
             _ => None,
         }
