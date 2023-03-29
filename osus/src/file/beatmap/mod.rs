@@ -8,13 +8,12 @@ use error_stack::Result;
 
 pub mod deserializing;
 pub mod error;
-pub mod iters;
 pub mod parsing;
 
 use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
 use self::parsing::parse_osu_file;
-use crate::Timestamped;
+use crate::{interleave_timestamped, InterleavedTimestampedIterator, Timestamped};
 
 pub type Timestamp = f64;
 
@@ -804,5 +803,11 @@ impl BeatmapFile {
 
     pub fn deserialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         deserialize_beatmap_file(self, writer)
+    }
+
+    pub fn iter_hit_objects_and_timing_points(
+        &self,
+    ) -> InterleavedTimestampedIterator<HitObject, TimingPoint> {
+        interleave_timestamped(&self.hit_objects, &self.timing_points)
     }
 }
