@@ -153,8 +153,9 @@ fn deserialize_timing_point<W: Write>(
 
     writeln!(
         writer,
-        "{time},{beat_length},{meter},{sample_set},{sample_index},{volume},{},{effects}",
-        *uninherited as u8
+        "{time},{beat_length},{meter},{},{sample_index},{volume},{},{effects}",
+        *sample_set as u8,
+        *uninherited as u8,
     )
 }
 

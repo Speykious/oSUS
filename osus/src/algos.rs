@@ -1,5 +1,7 @@
-use crate::TimestampedSlice;
-use crate::file::beatmap::{BeatmapFile, HitObject, HitObjectParams, TimingPoint};
+use crate::file::beatmap::{
+    BeatmapFile, HitObject, HitObjectParams, SampleBank, Timestamp, TimingPoint,
+};
+use crate::{Timestamped, TimestampedSlice};
 
 pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
     for timing_point in &mut beatmap.timing_points {
@@ -15,7 +17,7 @@ pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
 }
 
 /// Resets all hitsounds in timing points, including volume.
-pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: u8) {
+pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: SampleBank) {
     for timing_point in timing_points {
         timing_point.sample_set = sample_set;
         timing_point.sample_index = 0;
@@ -104,4 +106,36 @@ pub fn remove_useless_speed_changes(
     }
 
     result_points
+}
+
+/// Insert a timing point for hitsounding purposes.
+pub fn insert_hitsound_timing_point(
+    timing_points: &mut Vec<TimingPoint>,
+    timestamp: Timestamp,
+    sample_set: SampleBank,
+    sample_index: u32,
+    volume: u8,
+) {
+    let index = timing_points.binary_search_by(|o| o.timestamp().total_cmp(&timestamp));
+    match index {
+        Ok(i) => {
+            // timestamp is the same, override timing point hitsound and volume info
+            let timing_point = &mut timing_points[i];
+            timing_point.sample_set = sample_set;
+            timing_point.sample_index = sample_index;
+            timing_point.volume = volume;
+        }
+        Err(i) if i > 0 => {
+            // timestamp is not the same, insert new timestamp based on previous one
+            let mut timing_point = timing_points[i - 1].clone();
+            timing_point.sample_set = sample_set;
+            timing_point.sample_index = sample_index;
+            timing_point.volume = volume;
+            timing_points.insert(i + 1, timing_point);
+        }
+        Err(_) => {
+            // timestamp is before the first timing point, let's not do anything for now
+            log::warn!("Tried to insert hitsound timing point before the first timing point of the map");
+        }
+    }
 }

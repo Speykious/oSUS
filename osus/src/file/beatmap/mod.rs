@@ -13,7 +13,7 @@ pub mod parsing;
 use self::deserializing::deserialize_beatmap_file;
 pub use self::error::*;
 use self::parsing::parse_osu_file;
-use crate::{interleave_timestamped, InterleavedTimestampedIterator, Timestamped};
+use crate::{InterleavedTimestamped, InterleavedTimestampedIterator, Timestamped};
 
 pub type Timestamp = f64;
 
@@ -265,7 +265,7 @@ pub struct TimingPoint {
     /// See beatmap https://osu.ppy.sh/beatmapsets/539221#osu/1265214
     pub meter: i32,
     /// Default sample set for hit objects (0 = beatmap default, 1 = normal, 2 = soft, 3 = drum).
-    pub sample_set: u8,
+    pub sample_set: SampleBank,
     /// Custom sample index for hit objects. `0` indicates osu!'s default hitsounds.
     pub sample_index: u32,
     /// Volume percentage for hit objects.
@@ -337,7 +337,7 @@ pub struct ColorsSection {
 }
 
 /// A bank of samples for normal, whistle, finish and clap hitsounds.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 #[repr(u8)]
 pub enum SampleBank {
     #[default]
@@ -578,6 +578,13 @@ impl HitSample {
             }
         )
     }
+
+    pub fn to_hit_sample_set(&self) -> HitSampleSet {
+        HitSampleSet {
+            normal_set: self.normal_set,
+            addition_set: self.addition_set,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -808,6 +815,6 @@ impl BeatmapFile {
     pub fn iter_hit_objects_and_timing_points(
         &self,
     ) -> InterleavedTimestampedIterator<HitObject, TimingPoint> {
-        interleave_timestamped(&self.hit_objects, &self.timing_points)
+        self.hit_objects.interleave_timestamped(&self.timing_points)
     }
 }
