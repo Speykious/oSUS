@@ -7,11 +7,11 @@ use std::str::FromStr;
 use error_stack::Result;
 
 pub mod deserializing;
-pub mod error;
+pub mod errors;
 pub mod parsing;
 
 use self::deserializing::deserialize_beatmap_file;
-pub use self::error::*;
+pub use self::errors::*;
 use self::parsing::parse_osu_file;
 use crate::{InterleavedTimestamped, InterleavedTimestampedIterator, Timestamped};
 
