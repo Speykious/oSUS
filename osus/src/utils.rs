@@ -130,6 +130,7 @@ where
     parse_list_of_with_sep(line, ',')
 }
 
-#[must_use] pub fn to_standardized_path(path: &str) -> String {
+#[must_use]
+pub fn to_standardized_path(path: &str) -> String {
     path.replace('\\', "/")
 }

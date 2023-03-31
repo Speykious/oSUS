@@ -28,7 +28,8 @@ pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: SampleBank
 /// Removes all duplicate timing points. It will keep every uninherited one.
 ///
 /// A timing point is a duplicate if all its fields except `time` and `uninherited` are the same as the direct previous timing point.
-#[must_use] pub fn remove_duplicates(timing_points: &[TimingPoint]) -> Vec<TimingPoint> {
+#[must_use]
+pub fn remove_duplicates(timing_points: &[TimingPoint]) -> Vec<TimingPoint> {
     if timing_points.is_empty() {
         return Vec::new();
     }
@@ -51,7 +52,8 @@ pub fn reset_hitsounds(timing_points: &mut [TimingPoint], sample_set: SampleBank
 /// Currently osu!lazer does this weird thing where it generates a timing point, just changing the speed to x1.00, only to then use the same speed as the previous slider for the next one...
 ///
 /// This is completely useless, so here's a function to remove them.
-#[must_use] pub fn remove_useless_speed_changes(
+#[must_use]
+pub fn remove_useless_speed_changes(
     timing_points: &[TimingPoint],
     hit_objects: &[HitObject],
 ) -> Vec<TimingPoint> {
@@ -135,7 +137,9 @@ pub fn insert_hitsound_timing_point(
         }
         Err(_) => {
             // timestamp is before the first timing point, let's not do anything for now
-            log::warn!("Tried to insert hitsound timing point before the first timing point of the map");
+            log::warn!(
+                "Tried to insert hitsound timing point before the first timing point of the map"
+            );
         }
     }
 }

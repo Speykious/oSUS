@@ -1,6 +1,10 @@
 use std::io::{self, Write};
 
-use super::{BeatmapFile, ColorsSection, DifficultySection, EditorSection, Event, EventParams, GeneralSection, HitObject, HitObjectParams, HitSampleSet, HitSound, MetadataSection, OverlayPosition, SliderCurveType, SliderPoint, TimingPoint};
+use super::{
+    BeatmapFile, ColorsSection, DifficultySection, EditorSection, Event, EventParams,
+    GeneralSection, HitObject, HitObjectParams, HitSampleSet, HitSound, MetadataSection,
+    OverlayPosition, SliderCurveType, SliderPoint, TimingPoint,
+};
 
 pub fn deserialize_general_section<W: Write>(
     section: &GeneralSection,
@@ -22,7 +26,11 @@ pub fn deserialize_general_section<W: Write>(
     )?;
     // do not write StoryFireInFront (deprecated)
     if section.use_skin_sprites {
-        writeln!(writer, "UseSkinSprites: {}", u8::from(section.use_skin_sprites))?;
+        writeln!(
+            writer,
+            "UseSkinSprites: {}",
+            u8::from(section.use_skin_sprites)
+        )?;
     }
     // do not write AlwaysShowPlayfield (deprecated)
     if section.overlay_position != OverlayPosition::NoChange {
@@ -116,14 +124,12 @@ pub fn deserialize_difficulty_section<W: Write>(
 pub fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> {
     write!(writer, "{},{},", event.event_type, event.start_time)?;
     match &event.params {
-        EventParams::Background {
+        EventParams::Video {
             filename,
             x_offset,
             y_offset,
-        } => {
-            writeln!(writer, "{filename},{x_offset},{y_offset}")
         }
-        EventParams::Video {
+        | EventParams::Background {
             filename,
             x_offset,
             y_offset,
@@ -234,7 +240,8 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             }
             write!(writer, ",{slides},{length}")?;
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
-                let edge_hitsounds: Vec<_> = edge_hitsounds.iter().map(HitSound::to_string).collect();
+                let edge_hitsounds: Vec<_> =
+                    edge_hitsounds.iter().map(HitSound::to_string).collect();
                 let edge_samplesets: Vec<_> = edge_samplesets
                     .iter()
                     .map(HitSampleSet::to_osu_string)

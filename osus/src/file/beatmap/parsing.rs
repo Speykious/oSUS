@@ -4,12 +4,18 @@ use std::path::Path;
 
 use error_stack::{bail, IntoReport, Report, Result, ResultExt};
 
-use crate::{ctx, section_ctx, section_rctx, section_fvp_rctx, section_fvp_ctx, rctx};
 use crate::utils::{
     parse_field_value_pair, parse_list_of, parse_list_of_with_sep, to_standardized_path,
 };
+use crate::{ctx, rctx, section_ctx, section_fvp_ctx, section_fvp_rctx, section_rctx};
 
-use super::{BeatmapFile, BeatmapFileParseError, Color, ColorParseError, ColorsSection, CurvePointsParseError, DifficultySection, EditorSection, Event, EventParams, EventParseError, GeneralSection, HitObject, HitObjectParams, HitObjectParseError, HitObjectType, HitSample, HitSampleParseError, HitSampleSet, HitSound, MetadataSection, SectionParseError, SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError};
+use super::{
+    BeatmapFile, BeatmapFileParseError, Color, ColorParseError, ColorsSection,
+    CurvePointsParseError, DifficultySection, EditorSection, Event, EventParams, EventParseError,
+    GeneralSection, HitObject, HitObjectParams, HitObjectParseError, HitObjectType, HitSample,
+    HitSampleParseError, HitSampleSet, HitSound, MetadataSection, SectionParseError,
+    SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError,
+};
 
 /// Parse a `[General]` section
 fn parse_general_section(
@@ -33,19 +39,19 @@ fn parse_general_section(
             match field.as_str() {
                 "AudioFilename" => section.audio_filename = to_standardized_path(&value),
                 "AudioLeadIn" => {
-                    section.audio_lead_in = section_fvp_rctx!(value.parse(), General, AudioLeadIn)?
+                    section.audio_lead_in = section_fvp_rctx!(value.parse(), General, AudioLeadIn)?;
                 }
                 "AudioHash" => section.audio_hash = Some(value),
                 "PreviewTime" => {
-                    section.preview_time = section_fvp_rctx!(value.parse(), General, PreviewTime)?
+                    section.preview_time = section_fvp_rctx!(value.parse(), General, PreviewTime)?;
                 }
                 "Countdown" => {
-                    section.countdown = section_fvp_rctx!(value.parse(), General, Countdown)?
+                    section.countdown = section_fvp_rctx!(value.parse(), General, Countdown)?;
                 }
                 "SampleSet" => section.sample_set = value,
                 "StackLeniency" => {
                     section.stack_leniency =
-                        section_fvp_rctx!(value.parse(), General, StackLeniency)?
+                        section_fvp_rctx!(value.parse(), General, StackLeniency)?;
                 }
                 "Mode" => section.mode = section_fvp_rctx!(value.parse(), General, Mode)?,
                 "LetterboxInBreaks" => {
@@ -127,18 +133,18 @@ fn parse_editor_section(
 
             match field.as_str() {
                 "Bookmarks" => {
-                    bookmarks = section_fvp_ctx!(parse_list_of(&value), Editor, Bookmarks)?
+                    bookmarks = section_fvp_ctx!(parse_list_of(&value), Editor, Bookmarks)?;
                 }
                 "DistanceSpacing" => {
                     distance_spacing =
-                        Some(section_fvp_rctx!(value.parse(), Editor, DistanceSpacing)?)
+                        Some(section_fvp_rctx!(value.parse(), Editor, DistanceSpacing)?);
                 }
                 "BeatDivisor" => {
-                    beat_divisor = Some(section_fvp_rctx!(value.parse(), Editor, BeatDivisor)?)
+                    beat_divisor = Some(section_fvp_rctx!(value.parse(), Editor, BeatDivisor)?);
                 }
                 "GridSize" => grid_size = Some(section_fvp_rctx!(value.parse(), Editor, GridSize)?),
                 "TimelineZoom" => {
-                    timeline_zoom = Some(section_fvp_rctx!(value.parse(), Editor, TimelineZoom)?)
+                    timeline_zoom = Some(section_fvp_rctx!(value.parse(), Editor, TimelineZoom)?);
                 }
                 key => log::warn!("[Editor] section: unknown field {key:?}"),
             }
@@ -194,14 +200,19 @@ fn parse_metadata_section(
                 "Creator" => section.creator = value,
                 "Version" => section.version = value,
                 "Source" => section.source = value,
-                "Tags" => section.tags = value.split(' ').map(std::borrow::ToOwned::to_owned).collect(),
+                "Tags" => {
+                    section.tags = value
+                        .split(' ')
+                        .map(std::borrow::ToOwned::to_owned)
+                        .collect();
+                }
                 "BeatmapID" => {
                     section.beatmap_id =
-                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapID)?)
+                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapID)?);
                 }
                 "BeatmapSetID" => {
                     section.beatmap_set_id =
-                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapSetID)?)
+                        Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapSetID)?);
                 }
                 key => log::warn!("[Metadata] section: unknown field {key:?}"),
             }
@@ -237,26 +248,26 @@ fn parse_difficulty_section(
             match field.as_str() {
                 "HPDrainRate" => {
                     section.hp_drain_rate =
-                        section_fvp_rctx!(value.parse(), Difficulty, HPDrainRate)?
+                        section_fvp_rctx!(value.parse(), Difficulty, HPDrainRate)?;
                 }
                 "CircleSize" => {
-                    section.circle_size = section_fvp_rctx!(value.parse(), Difficulty, CircleSize)?
+                    section.circle_size = section_fvp_rctx!(value.parse(), Difficulty, CircleSize)?;
                 }
                 "OverallDifficulty" => {
                     section.overall_difficulty =
-                        section_fvp_rctx!(value.parse(), Difficulty, OverallDifficulty)?
+                        section_fvp_rctx!(value.parse(), Difficulty, OverallDifficulty)?;
                 }
                 "ApproachRate" => {
                     section.approach_rate =
-                        section_fvp_rctx!(value.parse(), Difficulty, ApproachRate)?
+                        section_fvp_rctx!(value.parse(), Difficulty, ApproachRate)?;
                 }
                 "SliderMultiplier" => {
                     section.slider_multiplier =
-                        section_fvp_rctx!(value.parse(), Difficulty, SliderMultiplier)?
+                        section_fvp_rctx!(value.parse(), Difficulty, SliderMultiplier)?;
                 }
                 "SliderTickRate" => {
                     section.slider_tick_rate =
-                        section_fvp_rctx!(value.parse(), Difficulty, SliderTickRate)?
+                        section_fvp_rctx!(value.parse(), Difficulty, SliderTickRate)?;
                 }
                 key => log::warn!("[Difficulty] section: unknown field {key:?}"),
             }
@@ -654,6 +665,7 @@ fn parse_curve_points(
     Ok((first_curve_type, curve_points))
 }
 
+#[allow(clippy::too_many_lines)]
 fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
     let args = line.split(',').collect::<Vec<_>>();
     if let [x, y, time, object_type, hit_sound, object_params @ ..] = &args[..] {
@@ -855,7 +867,9 @@ where
 {
     let mut beatmap = BeatmapFile::default();
 
+    // TODO: think about how to make the error handling better (this line below can panic).
     let filename = path.as_ref().file_name().unwrap();
+
     let file = rctx!(File::open(&path), BeatmapFileParseError::from(filename))?;
 
     let mut reader = BufReader::new(file)
