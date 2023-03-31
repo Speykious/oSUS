@@ -5,10 +5,7 @@ use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use osus::algos::{
-    insert_hitsound_timing_point, offset_map, remove_duplicates, remove_useless_speed_changes,
-    reset_hitsounds,
-};
+use osus::algos::{offset_map, remove_duplicates, remove_useless_speed_changes, reset_hitsounds};
 use osus::file::beatmap::{BeatmapFile, HitObjectParams, SampleBank, TimingPoint};
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
