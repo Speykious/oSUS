@@ -9,7 +9,7 @@ use crate::utils::{
     parse_field_value_pair, parse_list_of, parse_list_of_with_sep, to_standardized_path,
 };
 
-use super::*;
+use super::{BeatmapFile, BeatmapFileParseError, Color, ColorParseError, ColorsSection, CurvePointsParseError, DifficultySection, EditorSection, Event, EventParams, EventParseError, GeneralSection, HitObject, HitObjectParams, HitObjectParseError, HitObjectType, HitSample, HitSampleParseError, HitSampleSet, HitSound, MetadataSection, SectionParseError, SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError};
 
 /// Parse a `[General]` section
 fn parse_general_section(
@@ -194,7 +194,7 @@ fn parse_metadata_section(
                 "Creator" => section.creator = value,
                 "Version" => section.version = value,
                 "Source" => section.source = value,
-                "Tags" => section.tags = value.split(' ').map(|s| s.to_owned()).collect(),
+                "Tags" => section.tags = value.split(' ').map(std::borrow::ToOwned::to_owned).collect(),
                 "BeatmapID" => {
                     section.beatmap_id =
                         Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapID)?)
@@ -792,7 +792,7 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
         };
 
         let combo_color_skip =
-            HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b01110000) >> 4);
+            HitObject::raw_is_new_combo(object_type).then_some((object_type & 0b0111_0000) >> 4);
 
         let object_type = match object_params {
             HitObjectParams::HitCircle => HitObjectType::HitCircle,

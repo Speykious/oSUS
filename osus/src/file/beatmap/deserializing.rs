@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use super::*;
+use super::{BeatmapFile, ColorsSection, DifficultySection, EditorSection, Event, EventParams, GeneralSection, HitObject, HitObjectParams, HitSampleSet, HitSound, MetadataSection, OverlayPosition, SliderCurveType, SliderPoint, TimingPoint};
 
 pub fn deserialize_general_section<W: Write>(
     section: &GeneralSection,
@@ -18,11 +18,11 @@ pub fn deserialize_general_section<W: Write>(
     writeln!(
         writer,
         "LetterboxInBreaks: {}",
-        section.letterbox_in_breaks as u8
+        u8::from(section.letterbox_in_breaks)
     )?;
     // do not write StoryFireInFront (deprecated)
     if section.use_skin_sprites {
-        writeln!(writer, "UseSkinSprites: {}", section.use_skin_sprites as u8)?;
+        writeln!(writer, "UseSkinSprites: {}", u8::from(section.use_skin_sprites))?;
     }
     // do not write AlwaysShowPlayfield (deprecated)
     if section.overlay_position != OverlayPosition::NoChange {
@@ -35,24 +35,24 @@ pub fn deserialize_general_section<W: Write>(
         writeln!(
             writer,
             "EpilepsyWarning: {}",
-            section.epilepsy_warning as u8
+            u8::from(section.epilepsy_warning)
         )?;
     }
     if section.countdown_offset != 0 {
         writeln!(writer, "CountdownOffset: {}", section.countdown_offset)?;
     }
     if section.special_style {
-        writeln!(writer, "SpecialStyle: {}", section.special_style as u8)?;
+        writeln!(writer, "SpecialStyle: {}", u8::from(section.special_style))?;
     }
     writeln!(
         writer,
         "WidescreenStoryboard: {}",
-        section.widescreen_storyboard as u8
+        u8::from(section.widescreen_storyboard)
     )?;
     writeln!(
         writer,
         "SamplesMatchPlaybackRate: {}",
-        section.samples_match_playback_rate as u8
+        u8::from(section.samples_match_playback_rate)
     )?;
     writeln!(writer)
 }
@@ -155,7 +155,7 @@ fn deserialize_timing_point<W: Write>(
         writer,
         "{time},{beat_length},{meter},{},{sample_index},{volume},{},{effects}",
         *sample_set as u8,
-        *uninherited as u8,
+        u8::from(*uninherited),
     )
 }
 

@@ -97,7 +97,7 @@ pub struct GeneralSection {
 impl Default for GeneralSection {
     fn default() -> Self {
         Self {
-            audio_filename: "".to_owned(),
+            audio_filename: String::new(),
             audio_lead_in: 0,
             audio_hash: None,
             preview_time: -1.,
@@ -292,7 +292,7 @@ impl TimingPoint {
     /// Whether this timing point is a duplicate of the other.
     ///
     /// A timing point is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
-    pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
+    #[must_use] pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
         self.beat_length == other.beat_length
             && self.meter == other.meter
             && self.sample_set == other.sample_set
@@ -315,7 +315,7 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn to_osu_string(&self) -> String {
+    #[must_use] pub fn to_osu_string(&self) -> String {
         let Color { r, g, b, a } = self;
         if let Some(a) = a {
             format!("{r},{g},{b},{a}")
@@ -370,7 +370,7 @@ pub struct HitSampleSet {
 }
 
 impl HitSampleSet {
-    pub fn to_osu_string(&self) -> String {
+    #[must_use] pub fn to_osu_string(&self) -> String {
         let HitSampleSet {
             normal_set,
             addition_set,
@@ -558,7 +558,7 @@ pub struct HitSample {
 }
 
 impl HitSample {
-    pub fn to_osu_string(&self) -> String {
+    #[must_use] pub fn to_osu_string(&self) -> String {
         let HitSample {
             normal_set,
             addition_set,
@@ -579,7 +579,7 @@ impl HitSample {
         )
     }
 
-    pub fn to_hit_sample_set(&self) -> HitSampleSet {
+    #[must_use] pub fn to_hit_sample_set(&self) -> HitSampleSet {
         HitSampleSet {
             normal_set: self.normal_set,
             addition_set: self.addition_set,
@@ -606,7 +606,7 @@ impl FromStr for HitSound {
 }
 
 impl HitSound {
-    pub fn flags_string_verbose(&self) -> String {
+    #[must_use] pub fn flags_string_verbose(&self) -> String {
         let mut sflags = "(hs)".to_owned();
 
         if self.has_normal() {
@@ -628,7 +628,7 @@ impl HitSound {
         sflags
     }
 
-    pub fn flags_string(&self) -> String {
+    #[must_use] pub fn flags_string(&self) -> String {
         let mut sflags = "(".to_owned();
 
         if self.has_normal() {
@@ -650,7 +650,7 @@ impl HitSound {
         sflags + ")"
     }
 
-    pub fn fixed_flags_string(&self) -> String {
+    #[must_use] pub fn fixed_flags_string(&self) -> String {
         format!(
             "({}{}{}{})",
             if self.has_normal() { "N" } else { "." },
@@ -660,19 +660,19 @@ impl HitSound {
         )
     }
 
-    pub fn has_normal(&self) -> bool {
+    #[must_use] pub fn has_normal(&self) -> bool {
         self.0 & 0b0001 > 0
     }
 
-    pub fn has_whistle(&self) -> bool {
+    #[must_use] pub fn has_whistle(&self) -> bool {
         self.0 & 0b0010 > 0
     }
 
-    pub fn has_finish(&self) -> bool {
+    #[must_use] pub fn has_finish(&self) -> bool {
         self.0 & 0b0100 > 0
     }
 
-    pub fn has_clap(&self) -> bool {
+    #[must_use] pub fn has_clap(&self) -> bool {
         self.0 & 0b1000 > 0
     }
 }
@@ -716,47 +716,47 @@ impl HitObject {
         raw_object_type & (1 << base_type) > 0
     }
 
-    pub fn raw_is_hit_circle(raw_object_type: u8) -> bool {
+    #[must_use] pub fn raw_is_hit_circle(raw_object_type: u8) -> bool {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_HIT_CIRCLE)
     }
 
-    pub fn raw_is_slider(raw_object_type: u8) -> bool {
+    #[must_use] pub fn raw_is_slider(raw_object_type: u8) -> bool {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SLIDER)
     }
 
-    pub fn raw_is_spinner(raw_object_type: u8) -> bool {
+    #[must_use] pub fn raw_is_spinner(raw_object_type: u8) -> bool {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SPINNER)
     }
 
-    pub fn raw_is_osu_mania_hold(raw_object_type: u8) -> bool {
+    #[must_use] pub fn raw_is_osu_mania_hold(raw_object_type: u8) -> bool {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_OSU_MANIA_HOLD)
     }
 
-    pub fn raw_is_new_combo(raw_object_type: u8) -> bool {
+    #[must_use] pub fn raw_is_new_combo(raw_object_type: u8) -> bool {
         Self::raw_is_base_type(raw_object_type, HitObject::RAW_NEW_COMBO)
     }
 
-    pub fn is_hit_circle(&self) -> bool {
+    #[must_use] pub fn is_hit_circle(&self) -> bool {
         self.object_type == HitObjectType::HitCircle
     }
 
-    pub fn is_slider(&self) -> bool {
+    #[must_use] pub fn is_slider(&self) -> bool {
         self.object_type == HitObjectType::Slider
     }
 
-    pub fn is_spinner(&self) -> bool {
+    #[must_use] pub fn is_spinner(&self) -> bool {
         self.object_type == HitObjectType::Spinner
     }
 
-    pub fn is_osu_mania_hold(&self) -> bool {
+    #[must_use] pub fn is_osu_mania_hold(&self) -> bool {
         self.object_type == HitObjectType::Hold
     }
 
-    pub fn is_new_combo(&self) -> bool {
+    #[must_use] pub fn is_new_combo(&self) -> bool {
         self.combo_color_skip.is_some()
     }
 
-    pub fn raw_object_type(&self) -> u8 {
+    #[must_use] pub fn raw_object_type(&self) -> u8 {
         let rt = match self.object_type {
             HitObjectType::HitCircle => Self::RAW_TYPE_HIT_CIRCLE,
             HitObjectType::Slider => Self::RAW_TYPE_SLIDER,
@@ -812,7 +812,7 @@ impl BeatmapFile {
         deserialize_beatmap_file(self, writer)
     }
 
-    pub fn iter_hit_objects_and_timing_points(
+    #[must_use] pub fn iter_hit_objects_and_timing_points(
         &self,
     ) -> InterleavedTimestampedIterator<HitObject, TimingPoint> {
         self.hit_objects.interleave_timestamped(&self.timing_points)
