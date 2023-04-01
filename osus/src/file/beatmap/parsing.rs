@@ -875,13 +875,12 @@ where
     let mut reader = BufReader::new(file)
         .lines()
         .map(|line| rctx!(line, BeatmapFileParseError::from(filename)))
-        .filter(|line| match line {
-            Ok(line) => {
+        .filter(|line| {
+            line.as_ref().map_or(true, |line| {
                 let l = line.trim();
                 // Ignore comments and empty lines
                 !l.is_empty() && !l.starts_with("//")
-            }
-            Err(_) => true,
+            })
         });
 
     let fformat_string = reader.next().ok_or_else(|| {

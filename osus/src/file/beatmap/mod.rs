@@ -33,9 +33,9 @@ impl FromStr for OverlayPosition {
 
     fn from_str(op_str: &str) -> core::result::Result<Self, Self::Err> {
         match op_str {
-            "NoChange" => Ok(OverlayPosition::NoChange),
-            "Below" => Ok(OverlayPosition::Below),
-            "Above" => Ok(OverlayPosition::Above),
+            "NoChange" => Ok(Self::NoChange),
+            "Below" => Ok(Self::Below),
+            "Above" => Ok(Self::Above),
             _ => Err(InvalidOverlayPositionError::from(op_str)),
         }
     }
@@ -294,7 +294,7 @@ impl TimingPoint {
     ///
     /// A timing point is a duplicate of the other if all their fields except `time` and `uninherited` are equal.
     #[must_use]
-    pub fn is_duplicate(&self, other: &TimingPoint) -> bool {
+    pub fn is_duplicate(&self, other: &Self) -> bool {
         (self.beat_length - other.beat_length).abs() < f64::EPSILON
             && self.meter == other.meter
             && self.sample_set == other.sample_set
@@ -319,12 +319,8 @@ pub struct Color {
 impl Color {
     #[must_use]
     pub fn to_osu_string(&self) -> String {
-        let Color { r, g, b, a } = self;
-        if let Some(a) = a {
-            format!("{r},{g},{b},{a}")
-        } else {
-            format!("{r},{g},{b}")
-        }
+        let Self { r, g, b, a } = self;
+        a.map_or_else(|| format!("{r},{g},{b}"), |a| format!("{r},{g},{b},{a}"))
     }
 }
 
@@ -355,10 +351,10 @@ impl FromStr for SampleBank {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "0" => Ok(SampleBank::Auto),
-            "1" => Ok(SampleBank::Normal),
-            "2" => Ok(SampleBank::Soft),
-            "3" => Ok(SampleBank::Drum),
+            "0" => Ok(Self::Auto),
+            "1" => Ok(Self::Normal),
+            "2" => Ok(Self::Soft),
+            "3" => Ok(Self::Drum),
             s => Err(InvalidSampleBankError::from(s)),
         }
     }
@@ -375,7 +371,7 @@ pub struct HitSampleSet {
 impl HitSampleSet {
     #[must_use]
     pub fn to_osu_string(&self) -> String {
-        let HitSampleSet {
+        let Self {
             normal_set,
             addition_set,
         } = *self;
@@ -407,7 +403,7 @@ impl FromStr for HitSampleSet {
                     context: format!("couldn't parse addition_set: {e}"),
                 })?;
 
-        Ok(HitSampleSet {
+        Ok(Self {
             normal_set,
             addition_set,
         })
@@ -528,10 +524,10 @@ pub enum HitObjectType {
 impl fmt::Display for HitObjectType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            HitObjectType::HitCircle => "hit circle",
-            HitObjectType::Slider => "slider",
-            HitObjectType::Spinner => "spinner",
-            HitObjectType::Hold => "hold",
+            Self::HitCircle => "hit circle",
+            Self::Slider => "slider",
+            Self::Spinner => "spinner",
+            Self::Hold => "hold",
         };
         write!(f, "{s}")
     }
@@ -564,7 +560,7 @@ pub struct HitSample {
 impl HitSample {
     #[must_use]
     pub fn to_osu_string(&self) -> String {
-        let HitSample {
+        let Self {
             normal_set,
             addition_set,
             index,
@@ -576,16 +572,12 @@ impl HitSample {
             "{}:{}:{index}:{volume}:{}",
             *normal_set as u8,
             *addition_set as u8,
-            if let Some(filename) = filename {
-                filename.as_str()
-            } else {
-                ""
-            }
+            filename.as_ref().map_or("", |filename| filename.as_str())
         )
     }
 
     #[must_use]
-    pub fn to_hit_sample_set(&self) -> HitSampleSet {
+    pub const fn to_hit_sample_set(&self) -> HitSampleSet {
         HitSampleSet {
             normal_set: self.normal_set,
             addition_set: self.addition_set,
@@ -607,7 +599,7 @@ impl FromStr for HitSound {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(HitSound(u8::from_str(s)?))
+        Ok(Self(u8::from_str(s)?))
     }
 }
 
@@ -670,22 +662,22 @@ impl HitSound {
     }
 
     #[must_use]
-    pub fn has_normal(&self) -> bool {
+    pub const fn has_normal(&self) -> bool {
         self.0 & 0b0001 > 0
     }
 
     #[must_use]
-    pub fn has_whistle(&self) -> bool {
+    pub const fn has_whistle(&self) -> bool {
         self.0 & 0b0010 > 0
     }
 
     #[must_use]
-    pub fn has_finish(&self) -> bool {
+    pub const fn has_finish(&self) -> bool {
         self.0 & 0b0100 > 0
     }
 
     #[must_use]
-    pub fn has_clap(&self) -> bool {
+    pub const fn has_clap(&self) -> bool {
         self.0 & 0b1000 > 0
     }
 }
@@ -725,33 +717,33 @@ impl HitObject {
     /// Position of the bit that signifies whether a hit object is on a new combo.
     pub const RAW_NEW_COMBO: u8 = 2;
 
-    fn raw_is_base_type(raw_object_type: u8, base_type: u8) -> bool {
+    const fn raw_is_base_type(raw_object_type: u8, base_type: u8) -> bool {
         raw_object_type & (1 << base_type) > 0
     }
 
     #[must_use]
-    pub fn raw_is_hit_circle(raw_object_type: u8) -> bool {
-        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_HIT_CIRCLE)
+    pub const fn raw_is_hit_circle(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, Self::RAW_TYPE_HIT_CIRCLE)
     }
 
     #[must_use]
-    pub fn raw_is_slider(raw_object_type: u8) -> bool {
-        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SLIDER)
+    pub const fn raw_is_slider(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, Self::RAW_TYPE_SLIDER)
     }
 
     #[must_use]
-    pub fn raw_is_spinner(raw_object_type: u8) -> bool {
-        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_SPINNER)
+    pub const fn raw_is_spinner(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, Self::RAW_TYPE_SPINNER)
     }
 
     #[must_use]
-    pub fn raw_is_osu_mania_hold(raw_object_type: u8) -> bool {
-        Self::raw_is_base_type(raw_object_type, HitObject::RAW_TYPE_OSU_MANIA_HOLD)
+    pub const fn raw_is_osu_mania_hold(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, Self::RAW_TYPE_OSU_MANIA_HOLD)
     }
 
     #[must_use]
-    pub fn raw_is_new_combo(raw_object_type: u8) -> bool {
-        Self::raw_is_base_type(raw_object_type, HitObject::RAW_NEW_COMBO)
+    pub const fn raw_is_new_combo(raw_object_type: u8) -> bool {
+        Self::raw_is_base_type(raw_object_type, Self::RAW_NEW_COMBO)
     }
 
     #[must_use]
@@ -775,7 +767,7 @@ impl HitObject {
     }
 
     #[must_use]
-    pub fn is_new_combo(&self) -> bool {
+    pub const fn is_new_combo(&self) -> bool {
         self.combo_color_skip.is_some()
     }
 
