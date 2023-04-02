@@ -13,6 +13,7 @@ pub mod parsing;
 use self::deserializing::deserialize_beatmap_file;
 pub use self::errors::*;
 use self::parsing::parse_osu_file;
+use crate::point::Point;
 use crate::{InterleavedTimestamped, InterleavedTimestampedIterator, Timestamped};
 
 pub type Timestamp = f64;
@@ -435,6 +436,16 @@ pub struct SliderPoint {
     pub x: i32,
     /// Vertical coordinate of the slider point.
     pub y: i32,
+}
+
+impl SliderPoint {
+    #[must_use]
+    pub fn to_point(&self) -> Point {
+        Point {
+            x: f64::from(self.x),
+            y: f64::from(self.y),
+        }
+    }
 }
 
 /// Extra parameters specific to the object's type.

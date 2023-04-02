@@ -5,8 +5,11 @@ use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use osus::algos::{offset_map, remove_duplicates, remove_useless_speed_changes, reset_hitsounds};
-use osus::file::beatmap::{BeatmapFile, HitObjectParams, SampleBank, TimingPoint};
+use osus::algos::{
+    convert_slider_points_to_legacy, offset_map, remove_duplicates, remove_useless_speed_changes,
+    reset_hitsounds,
+};
+use osus::file::beatmap::{BeatmapFile, HitObjectParams, SampleBank, SliderPoint, TimingPoint};
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
 
@@ -115,6 +118,19 @@ enum Commands {
         #[arg(help = PATH_HELP)]
         path: PathBuf,
     },
+
+    /// Convert a Lazer map (v128) to a Stable map (v14).
+    LazerToStable {
+        #[arg(
+            short,
+            long,
+            help = OUT_PATH_HELP
+        )]
+        out_path: Option<PathBuf>,
+
+        #[arg(help = PATH_HELP)]
+        path: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -153,6 +169,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             sound_map,
             path,
         } => cli_splat_hitsounds(out_path.as_deref(), &sound_map, &path)?,
+
+        Commands::LazerToStable { out_path, path } => {
+            cli_lazer_to_stable(out_path.as_deref(), &path)?
+        }
     }
 
     Ok(())
@@ -440,54 +460,12 @@ fn cli_splat_hitsounds(
                 };
 
                 modified_hit_objects.push(new_hit_object);
-
-                // // old prints
-                // if let HitObjectParams::Slider {
-                //     edge_hitsounds,
-                //     length,
-                //     ..
-                // } = &hit_object.object_params
-                // {
-                //     let dur = *length * beat_length / (slider_multiplier * 100.0 * slider_velocity);
-
-                //     print!(
-                //         "[{}] {:>6}:{:<6} {} | {} (dur={})",
-                //         hit_object.time,
-                //         format!("{:?}", hit_object.hit_sample.normal_set),
-                //         format!("{:?}", hit_object.hit_sample.addition_set),
-                //         hit_object.hit_sound.fixed_flags_string(),
-                //         hit_object.object_type,
-                //         dur.round(),
-                //     );
-
-                //     for eh in edge_hitsounds {
-                //         print!(" -> {}", eh.fixed_flags_string());
-                //     }
-                //     println!();
-                // } else {
-                //     println!(
-                //         "[{}] {:>6}:{:<6} {} | {}",
-                //         hit_object.time,
-                //         format!("{:?}", hit_object.hit_sample.normal_set),
-                //         format!("{:?}", hit_object.hit_sample.addition_set),
-                //         hit_object.hit_sound.fixed_flags_string(),
-                //         hit_object.object_type,
-                //     );
-                // }
             }
             Err(timing_point) if timing_point.uninherited => {
                 beat_length = timing_point.beat_length;
-                // println!(
-                //     "[{}] Timing Point ~ BeatLength = {}",
-                //     timing_point.time, beat_length
-                // );
             }
             Err(timing_point) => {
                 slider_velocity = -100.0 / timing_point.beat_length;
-                // println!(
-                //     "[{}] Timing Point (inherited) ~ SV = {:.2}",
-                //     timing_point.time, slider_velocity
-                // );
             }
         }
     }
@@ -496,6 +474,57 @@ fn cli_splat_hitsounds(
     if let Some(ref mut metadata) = beatmap.metadata {
         metadata.version += "~ HITSOUNDED";
     }
+
+    write_beatmap_out(&beatmap, out_path)
+}
+
+fn cli_lazer_to_stable(out_path: Option<&Path>, path: &Path) -> io::Result<()> {
+    log::warn!("Parsing {}...", path.display());
+    let mut beatmap = match BeatmapFile::parse(path) {
+        Ok(beatmap) => beatmap,
+        Err(err) => {
+            log::error!("\n{err:?}");
+            return Ok(());
+        }
+    };
+
+    for timing_point in &mut beatmap.timing_points {
+        timing_point.time = timing_point.time.round();
+    }
+
+    for hit_object in &mut beatmap.hit_objects {
+        hit_object.time = hit_object.time.round();
+
+        if let HitObjectParams::Slider {
+            first_curve_type,
+            curve_points,
+            ..
+        } = &mut hit_object.object_params
+        {
+            curve_points.insert(
+                0,
+                SliderPoint {
+                    curve_type: *first_curve_type,
+                    x: hit_object.x,
+                    y: hit_object.y,
+                },
+            );
+
+            *curve_points = match convert_slider_points_to_legacy(curve_points) {
+                Ok(curve_points) => curve_points,
+                Err(err) => {
+                    log::error!("\n{err:?}");
+                    return Ok(());
+                }
+            };
+
+            let first_curve_point = curve_points.remove(0);
+            *first_curve_type = first_curve_point.curve_type;
+        }
+    }
+
+    beatmap.osu_file_format = 14;
+    add_suffix_to_map_version(&mut beatmap, " ||STABLE");
 
     write_beatmap_out(&beatmap, out_path)
 }

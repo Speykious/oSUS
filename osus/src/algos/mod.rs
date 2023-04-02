@@ -1,7 +1,12 @@
+pub mod bezier;
+
 use crate::file::beatmap::{
-    BeatmapFile, HitObject, HitObjectParams, SampleBank, Timestamp, TimingPoint,
+    BeatmapFile, HitObject, HitObjectParams, SampleBank, SliderCurveType, SliderPoint, Timestamp,
+    TimingPoint,
 };
 use crate::{Timestamped, TimestampedSlice};
+
+use self::bezier::{convert_to_bezier_anchors, BezierConversionError};
 
 pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
     for timing_point in &mut beatmap.timing_points {
@@ -142,4 +147,67 @@ pub fn insert_hitsound_timing_point(
             );
         }
     }
+}
+
+/// Converts a slider's control points so that they can work with `osu! file format v14`.
+///
+/// # Errors
+///
+/// This function will return an error if the slider could not be converted to a bezier.
+pub fn convert_slider_points_to_legacy(
+    curve_points: &[SliderPoint],
+) -> error_stack::Result<Vec<SliderPoint>, BezierConversionError> {
+    Ok(match curve_points.len() {
+        0 | 1 | 2 => curve_points.to_vec(),
+        3 => {
+            let mut curve_points = curve_points.to_vec();
+
+            // if the middle point is not inherited, the 3-point slider is gonna be linear
+            if curve_points[1].curve_type != SliderCurveType::Inherit {
+                curve_points[0].curve_type = SliderCurveType::Linear;
+                curve_points[1].curve_type = SliderCurveType::Inherit;
+            }
+            curve_points[2].curve_type = SliderCurveType::Inherit;
+
+            curve_points
+        }
+        _ => {
+            let mut segments = Vec::new();
+
+            let mut segment_start = 0;
+            for (i, point) in curve_points.iter().enumerate() {
+                if i == segment_start {
+                    continue;
+                }
+
+                if point.curve_type != SliderCurveType::Inherit {
+                    segments.push(&curve_points[segment_start..=i]);
+                    segment_start = i;
+                }
+            }
+
+            if segment_start != curve_points.len() - 1 {
+                segments.push(&curve_points[segment_start..]);
+            }
+
+            let mut curve_points = Vec::new();
+
+            for segment in segments {
+                let points = convert_to_bezier_anchors(segment)?;
+
+                #[allow(clippy::cast_possible_truncation)]
+                curve_points.extend(points.iter().map(|p| SliderPoint {
+                    curve_type: SliderCurveType::Inherit,
+                    x: p.x as i32,
+                    y: p.y as i32,
+                }));
+            }
+
+            if let Some(first_point) = curve_points.first_mut() {
+                first_point.curve_type = SliderCurveType::Bezier;
+            }
+
+            curve_points
+        }
+    })
 }

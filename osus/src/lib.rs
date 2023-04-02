@@ -2,18 +2,20 @@
 
 pub mod algos;
 pub mod file;
+pub mod point;
 pub mod utils;
 
 use std::cmp::Ordering;
 use std::ops::{Bound, RangeBounds};
 
 use file::beatmap::Timestamp;
+use utils::is_close;
 
 pub trait Timestamped {
     fn timestamp(&self) -> Timestamp;
 
     fn basically_at(&self, timestamp: Timestamp) -> bool {
-        (self.timestamp() - timestamp).abs() <= 1.0
+        is_close(self.timestamp(), timestamp, 1.0)
     }
 
     fn basically_eq(&self, other: &impl Timestamped) -> bool {

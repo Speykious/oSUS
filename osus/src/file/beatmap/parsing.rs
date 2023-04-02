@@ -960,10 +960,6 @@ where
                     )?;
                 }
                 _ => section_header = None,
-                // section_str => {
-                //     return Err(Report::new(OsuBeatmapParseError::from(filename))
-                //         .attach_printable(format!("Invalid section {section_str:?}")));
-                // }
             };
         }
     }

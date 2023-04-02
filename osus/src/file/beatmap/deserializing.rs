@@ -6,7 +6,7 @@ use super::{
     OverlayPosition, SliderCurveType, SliderPoint, TimingPoint,
 };
 
-pub fn deserialize_general_section<W: Write>(
+fn deserialize_general_section<W: Write>(
     section: &GeneralSection,
     writer: &mut W,
 ) -> io::Result<()> {
@@ -65,7 +65,7 @@ pub fn deserialize_general_section<W: Write>(
     writeln!(writer)
 }
 
-pub fn deserialize_editor_section<W: Write>(
+fn deserialize_editor_section<W: Write>(
     section: &EditorSection,
     writer: &mut W,
 ) -> io::Result<()> {
@@ -83,7 +83,7 @@ pub fn deserialize_editor_section<W: Write>(
     writeln!(writer)
 }
 
-pub fn deserialize_metadata_section<W: Write>(
+fn deserialize_metadata_section<W: Write>(
     section: &MetadataSection,
     writer: &mut W,
 ) -> io::Result<()> {
@@ -107,7 +107,7 @@ pub fn deserialize_metadata_section<W: Write>(
     writeln!(writer)
 }
 
-pub fn deserialize_difficulty_section<W: Write>(
+fn deserialize_difficulty_section<W: Write>(
     section: &DifficultySection,
     writer: &mut W,
 ) -> io::Result<()> {
@@ -121,7 +121,7 @@ pub fn deserialize_difficulty_section<W: Write>(
     writeln!(writer)
 }
 
-pub fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> {
+fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> {
     write!(writer, "{},{},", event.event_type, event.start_time)?;
     match &event.params {
         EventParams::Video {
@@ -183,6 +183,44 @@ fn deserialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) 
     writeln!(writer)
 }
 
+fn deserialize_curve_points<W: Write>(
+    first_curve_type: SliderCurveType,
+    curve_points: &[SliderPoint],
+    writer: &mut W,
+) -> io::Result<()> {
+    let mut started = false;
+    for &curve_point in curve_points {
+        if started {
+            write!(writer, "|")?;
+        }
+
+        let SliderPoint { curve_type, x, y } = curve_point;
+        let prefix = match curve_type {
+            SliderCurveType::Inherit => "",
+            SliderCurveType::Bezier => "B|",
+            SliderCurveType::Catmull => "C|",
+            SliderCurveType::Linear => "L|",
+            SliderCurveType::PerfectCurve => "P|",
+        };
+
+        if !started && curve_type != first_curve_type {
+            let preprefix = match first_curve_type {
+                SliderCurveType::Inherit => "",
+                SliderCurveType::Bezier => "B|",
+                SliderCurveType::Catmull => "C|",
+                SliderCurveType::Linear => "L|",
+                SliderCurveType::PerfectCurve => "P|",
+            };
+            write!(writer, "{preprefix}")?;
+        }
+
+        write!(writer, "{prefix}{x}:{y}")?;
+        started = true;
+    }
+
+    Ok(())
+}
+
 fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> io::Result<()> {
     let HitObject {
         x,
@@ -209,36 +247,9 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             edge_samplesets,
         } => {
             write!(writer, ",")?;
-            let mut started = false;
-            for curve_point in curve_points {
-                if started {
-                    write!(writer, "|")?;
-                }
-
-                let SliderPoint { curve_type, x, y } = curve_point;
-                let prefix = match curve_type {
-                    SliderCurveType::Inherit => "",
-                    SliderCurveType::Bezier => "B|",
-                    SliderCurveType::Catmull => "C|",
-                    SliderCurveType::Linear => "L|",
-                    SliderCurveType::PerfectCurve => "P|",
-                };
-
-                if !started && curve_type != first_curve_type {
-                    let preprefix = match first_curve_type {
-                        SliderCurveType::Inherit => "",
-                        SliderCurveType::Bezier => "B|",
-                        SliderCurveType::Catmull => "C|",
-                        SliderCurveType::Linear => "L|",
-                        SliderCurveType::PerfectCurve => "P|",
-                    };
-                    write!(writer, "{preprefix}")?;
-                }
-
-                write!(writer, "{prefix}{x}:{y}")?;
-                started = true;
-            }
+            deserialize_curve_points(*first_curve_type, curve_points, writer)?;
             write!(writer, ",{slides},{length}")?;
+            
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
                 let edge_hitsounds: Vec<_> =
                     edge_hitsounds.iter().map(HitSound::to_string).collect();
@@ -264,6 +275,11 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
     }
 }
 
+/// Write a beatmap file as a `.osu` file.
+///
+/// # Errors
+///
+/// This function will return an error if an IO issue occured.
 pub fn deserialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W) -> io::Result<()> {
     // I could use self.osu_file_format, but I'm not deserializing to old formats
     write!(writer, "osu file format v{}\n\n", 128)?;
