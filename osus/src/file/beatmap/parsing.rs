@@ -633,7 +633,7 @@ fn parse_curve_points(
     };
 
     let mut curve_points = Vec::new();
-    let mut curve_type = first_curve_type;
+    let mut curve_type = SliderCurveType::Inherit;
     for curve_token in curve_tokens {
         match curve_token {
             "B" => curve_type = SliderCurveType::Bezier,
