@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 use osus::algos::{
-    convert_slider_points_to_legacy, offset_map, remove_duplicates, remove_useless_speed_changes,
-    reset_hitsounds,
+    convert_slider_points_to_legacy, mix_volume, offset_map, remove_duplicates,
+    remove_useless_speed_changes, reset_hitsounds,
 };
 use osus::file::beatmap::{BeatmapFile, HitObjectParams, SampleBank, SliderPoint, TimingPoint};
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
@@ -51,6 +51,22 @@ enum Commands {
     Offset {
         #[arg(help = "Amount of milliseconds to offset the beatmap (can be a decimal number).")]
         millis: f64,
+
+        #[arg(
+            short,
+            long,
+            help = OUT_PATH_HELP
+        )]
+        out_path: Option<PathBuf>,
+
+        #[arg(help = PATH_HELP)]
+        path: PathBuf,
+    },
+
+    /// Raise or lower the beatmap's volume.
+    MixVolume {
+        #[arg(long, help = "Amount of volume to add. Can be positive or negative.")]
+        val: i8,
 
         #[arg(
             short,
@@ -153,6 +169,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             path,
         } => cli_offset(millis, out_path.as_deref(), &path)?,
 
+        Commands::MixVolume {
+            val,
+            out_path,
+            path,
+        } => cli_mix_volume(val, out_path.as_deref(), &path)?,
+
         Commands::ResetSampleSets {
             soft,
             cleanup,
@@ -245,6 +267,22 @@ fn cli_offset(millis: f64, out_path: Option<&Path>, path: &Path) -> io::Result<(
 
     log::warn!("Offsetting beatmap...");
     offset_map(&mut beatmap, millis);
+
+    write_beatmap_out(&beatmap, out_path)
+}
+
+fn cli_mix_volume(val: i8, out_path: Option<&Path>, path: &Path) -> io::Result<()> {
+    log::warn!("Parsing {}...", path.display());
+    let mut beatmap = match BeatmapFile::parse(path) {
+        Ok(beatmap) => beatmap,
+        Err(err) => {
+            log::error!("\n{err:?}");
+            return Ok(());
+        }
+    };
+
+    log::warn!("Mixing volume...");
+    mix_volume(&mut beatmap.timing_points, val);
 
     write_beatmap_out(&beatmap, out_path)
 }

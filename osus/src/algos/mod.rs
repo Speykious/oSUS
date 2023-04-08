@@ -8,6 +8,7 @@ use crate::{Timestamped, TimestampedSlice};
 
 use self::bezier::{convert_to_bezier_anchors, BezierConversionError};
 
+/// Offsets all timing points and hitobjects' times.
 pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
     for timing_point in &mut beatmap.timing_points {
         timing_point.time += offset_millis;
@@ -18,6 +19,13 @@ pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
         if let HitObjectParams::Spinner { end_time } = &mut hit_object.object_params {
             *end_time += offset_millis;
         }
+    }
+}
+
+/// Raises (positive value) or lowers (negative value) the volume.
+pub fn mix_volume(timing_points: &mut [TimingPoint], val: i8) {
+    for timing_point in timing_points {
+        timing_point.volume = timing_point.volume.saturating_add_signed(val);
     }
 }
 
