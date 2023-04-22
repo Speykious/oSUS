@@ -9,7 +9,9 @@ use osus::algos::{
     convert_slider_points_to_legacy, mix_volume, offset_map, remove_duplicates,
     remove_useless_speed_changes, reset_hitsounds,
 };
-use osus::file::beatmap::{BeatmapFile, HitObjectParams, SampleBank, SliderPoint, TimingPoint};
+use osus::file::beatmap::{
+    BeatmapFile, BeatmapFileParseError, HitObjectParams, SampleBank, SliderPoint, TimingPoint,
+};
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
 
@@ -22,8 +24,6 @@ struct Cli {
 }
 
 const PATH_HELP: &str = "Path to beatmap file or folder containing beatmap files.";
-const OUT_PATH_HELP: &str =
-    "Output path where to write the transformed beatmap (defaults to stdout).";
 
 #[derive(Subcommand)]
 enum Commands {
@@ -52,13 +52,6 @@ enum Commands {
         #[arg(help = "Amount of milliseconds to offset the beatmap (can be a decimal number).")]
         millis: f64,
 
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
-
         #[arg(help = PATH_HELP)]
         path: PathBuf,
     },
@@ -67,13 +60,6 @@ enum Commands {
     MixVolume {
         #[arg(long, help = "Amount of volume to add. Can be positive or negative.")]
         val: i8,
-
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
 
         #[arg(help = PATH_HELP)]
         path: PathBuf,
@@ -95,39 +81,18 @@ enum Commands {
         )]
         cleanup: bool,
 
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
-
         #[arg(help = PATH_HELP)]
         path: PathBuf,
     },
 
     /// Cleanup timing points by removing all the ones that are useless/duplicates.
     CleanupTimingPoints {
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
-
         #[arg(help = PATH_HELP)]
         path: PathBuf,
     },
 
     /// Take hitsounds from a map and splat them on another.
     SplatHitsounds {
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
-
         #[arg(short, long, help = "Path to hitsound map file.")]
         sound_map: PathBuf,
 
@@ -137,13 +102,6 @@ enum Commands {
 
     /// Convert a Lazer map (v128) to a Stable map (v14).
     LazerToStable {
-        #[arg(
-            short,
-            long,
-            help = OUT_PATH_HELP
-        )]
-        out_path: Option<PathBuf>,
-
         #[arg(help = PATH_HELP)]
         path: PathBuf,
     },
@@ -163,38 +121,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             cli_extract_osu_lazer_files(&out_path, recursive, &path)?;
         }
 
-        Commands::Offset {
-            millis,
-            out_path,
-            path,
-        } => cli_offset(millis, out_path.as_deref(), &path)?,
+        Commands::Offset { millis, path } => cli_offset(millis, &path)?,
 
-        Commands::MixVolume {
-            val,
-            out_path,
-            path,
-        } => cli_mix_volume(val, out_path.as_deref(), &path)?,
+        Commands::MixVolume { val, path } => cli_mix_volume(val, &path)?,
 
         Commands::ResetSampleSets {
             soft,
             cleanup,
-            out_path,
             path,
-        } => cli_reset_sample_sets(soft, cleanup, out_path.as_deref(), &path)?,
+        } => cli_reset_sample_sets(soft, cleanup, &path)?,
 
-        Commands::CleanupTimingPoints { out_path, path } => {
-            cli_cleanup_timing_points(out_path.as_deref(), &path)?
-        }
+        Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path)?,
 
-        Commands::SplatHitsounds {
-            out_path,
-            sound_map,
-            path,
-        } => cli_splat_hitsounds(out_path.as_deref(), &sound_map, &path)?,
+        Commands::SplatHitsounds { sound_map, path } => cli_splat_hitsounds(&sound_map, &path)?,
 
-        Commands::LazerToStable { out_path, path } => {
-            cli_lazer_to_stable(out_path.as_deref(), &path)?
-        }
+        Commands::LazerToStable { path } => cli_lazer_to_stable(&path)?,
     }
 
     Ok(())
@@ -207,14 +148,26 @@ fn add_suffix_to_map_version(beatmap: &mut BeatmapFile, suffix: &str) {
     }
 }
 
-fn write_beatmap_out(beatmap: &BeatmapFile, path: Option<&Path>) -> io::Result<()> {
-    if let Some(path) = path {
-        log::warn!("Write beatmap to {}...", path.display());
-        let mut out_file = File::create(path)?;
-        beatmap.deserialize(&mut out_file)?;
-    } else {
-        beatmap.deserialize(&mut io::stdout())?;
+fn backup(path: &Path) -> io::Result<u64> {
+    fs::copy(path, path.with_extension(".osu.backup"))
+}
+
+fn parse_beatmap(path: &Path, do_backup: bool) -> Result<BeatmapFile, Box<dyn Error>> {
+    if do_backup {
+        log::warn!("Backing up {}...", path.display());
+        backup(path)?;
     }
+
+    log::warn!("Parsing {}...", path.display());
+    let beatmap = BeatmapFile::parse(path).map_err(|e| e.to_string())?;
+
+    Ok(beatmap)
+}
+
+fn write_beatmap_out(beatmap: &BeatmapFile, path: &Path) -> io::Result<()> {
+    log::warn!("Write beatmap to {}...", path.display());
+    let mut out_file = File::create(path)?;
+    beatmap.deserialize(&mut out_file)?;
 
     Ok(())
 }
@@ -231,7 +184,11 @@ fn cleanup_timing_points(beatmap: &mut BeatmapFile) {
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 }
 
-fn cli_extract_osu_lazer_files(out_path: &Path, recursive: bool, path: &Path) -> io::Result<()> {
+fn cli_extract_osu_lazer_files(
+    out_path: &Path,
+    recursive: bool,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
     for entry in WalkDir::new(path)
         .max_depth(if recursive { usize::MAX } else { 0 })
         .follow_links(true)
@@ -255,52 +212,28 @@ fn cli_extract_osu_lazer_files(out_path: &Path, recursive: bool, path: &Path) ->
     Ok(())
 }
 
-fn cli_offset(millis: f64, out_path: Option<&Path>, path: &Path) -> io::Result<()> {
-    log::warn!("Parsing {}...", path.display());
-    let mut beatmap = match BeatmapFile::parse(path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_offset(millis: f64, path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(path, true)?;
 
     log::warn!("Offsetting beatmap...");
     offset_map(&mut beatmap, millis);
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, path)?;
+    Ok(())
 }
 
-fn cli_mix_volume(val: i8, out_path: Option<&Path>, path: &Path) -> io::Result<()> {
-    log::warn!("Parsing {}...", path.display());
-    let mut beatmap = match BeatmapFile::parse(path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_mix_volume(val: i8, path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(path, true)?;
 
     log::warn!("Mixing volume...");
     mix_volume(&mut beatmap.timing_points, val);
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, path)?;
+    Ok(())
 }
 
-fn cli_reset_sample_sets(
-    soft: bool,
-    cleanup: bool,
-    out_path: Option<&Path>,
-    path: &Path,
-) -> io::Result<()> {
-    log::warn!("Parsing {}...", path.display());
-    let mut beatmap = match BeatmapFile::parse(path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_reset_sample_sets(soft: bool, cleanup: bool, path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(path, true)?;
 
     log::warn!("Resetting hitsounds...");
     let sample_bank = if soft {
@@ -317,47 +250,23 @@ fn cli_reset_sample_sets(
         add_suffix_to_map_version(&mut beatmap, " ||RESET");
     }
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, path)?;
+    Ok(())
 }
 
-fn cli_cleanup_timing_points(out_path: Option<&Path>, path: &Path) -> io::Result<()> {
-    log::warn!("Parsing {}...", path.display());
-    let mut beatmap = match BeatmapFile::parse(path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_cleanup_timing_points(path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(path, true)?;
 
     cleanup_timing_points(&mut beatmap);
     add_suffix_to_map_version(&mut beatmap, " ||CLEAN");
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, path)?;
+    Ok(())
 }
 
-fn cli_splat_hitsounds(
-    out_path: Option<&Path>,
-    soundmap_path: &Path,
-    beatmap_path: &Path,
-) -> io::Result<()> {
-    log::warn!("Parsing {}...", beatmap_path.display());
-    let mut beatmap = match BeatmapFile::parse(beatmap_path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
-
-    log::warn!("Parsing {}...", soundmap_path.display());
-    let soundmap = match BeatmapFile::parse(soundmap_path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(beatmap_path, true)?;
+    let soundmap = parse_beatmap(soundmap_path, false)?;
 
     // insert soundmap's hitsound information from timing points
     log::warn!("Inserting soundmap's timing points...");
@@ -513,18 +422,12 @@ fn cli_splat_hitsounds(
         metadata.version += "~ HITSOUNDED";
     }
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, beatmap_path)?;
+    Ok(())
 }
 
-fn cli_lazer_to_stable(out_path: Option<&Path>, path: &Path) -> io::Result<()> {
-    log::warn!("Parsing {}...", path.display());
-    let mut beatmap = match BeatmapFile::parse(path) {
-        Ok(beatmap) => beatmap,
-        Err(err) => {
-            log::error!("\n{err:?}");
-            return Ok(());
-        }
-    };
+fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
+    let mut beatmap = parse_beatmap(path, true)?;
 
     for timing_point in &mut beatmap.timing_points {
         timing_point.time = timing_point.time.round();
@@ -564,5 +467,6 @@ fn cli_lazer_to_stable(out_path: Option<&Path>, path: &Path) -> io::Result<()> {
     beatmap.osu_file_format = 14;
     add_suffix_to_map_version(&mut beatmap, " ||STABLE");
 
-    write_beatmap_out(&beatmap, out_path)
+    write_beatmap_out(&beatmap, path)?;
+    Ok(())
 }
