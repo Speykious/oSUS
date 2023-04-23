@@ -10,7 +10,7 @@ use osus::algos::{
     remove_useless_speed_changes, reset_hitsounds,
 };
 use osus::file::beatmap::{
-    BeatmapFile, BeatmapFileParseError, HitObjectParams, SampleBank, SliderPoint, TimingPoint,
+    BeatmapFile, HitObjectParams, SampleBank, SliderPoint, TimingPoint,
 };
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
