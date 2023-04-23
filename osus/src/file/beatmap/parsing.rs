@@ -861,6 +861,16 @@ fn parse_hit_objects_section(
     Ok(hit_objects)
 }
 
+/// Parses an osu! beatmap file.
+///
+/// # Panics
+///
+/// Panics if the provided file path is not valid, meaning it terminates in `..` or if the path is root (`/`).
+/// (though it probably shouldn't...)
+///
+/// # Errors
+///
+/// This function will return an error if the file doesn't exist or could not be parsed correctly.
 pub fn parse_osu_file<P>(path: P) -> Result<BeatmapFile, BeatmapFileParseError>
 where
     P: AsRef<Path>,

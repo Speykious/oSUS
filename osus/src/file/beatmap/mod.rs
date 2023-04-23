@@ -832,10 +832,25 @@ pub struct BeatmapFile {
 }
 
 impl BeatmapFile {
-    pub fn parse<P: AsRef<Path>>(path: P) -> Result<BeatmapFile, BeatmapFileParseError> {
+    /// Parses an osu! beatmap file.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided file path is not valid, meaning it terminates in `..` or if the path is root (`/`).
+    /// (though it probably shouldn't...)
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the file doesn't exist or could not be parsed correctly.
+    pub fn parse<P: AsRef<Path>>(path: P) -> Result<Self, BeatmapFileParseError> {
         parse_osu_file(path)
     }
 
+    /// Write this beatmap file as a `.osu` file.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if an IO issue occured.
     pub fn deserialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         deserialize_beatmap_file(self, writer)
     }
