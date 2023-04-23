@@ -149,7 +149,7 @@ fn add_suffix_to_map_version(beatmap: &mut BeatmapFile, suffix: &str) {
 }
 
 fn backup(path: &Path) -> io::Result<u64> {
-    fs::copy(path, path.with_extension(".osu.backup"))
+    fs::copy(path, path.with_extension("osu.backup"))
 }
 
 fn parse_beatmap(path: &Path, do_backup: bool) -> Result<BeatmapFile, Box<dyn Error>> {
