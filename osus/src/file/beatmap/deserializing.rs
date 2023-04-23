@@ -281,8 +281,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
 ///
 /// This function will return an error if an IO issue occured.
 pub fn deserialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W) -> io::Result<()> {
-    // I could use self.osu_file_format, but I'm not deserializing to old formats
-    write!(writer, "osu file format v{}\n\n", 128)?;
+    write!(writer, "osu file format v{}\n\n", bm_file.osu_file_format)?;
 
     if let Some(general) = &bm_file.general {
         deserialize_general_section(general, writer)?;
