@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
+use std::ops::Range;
 use std::str::FromStr;
 
 use error_stack::{IntoReport, Report, Result, ResultExt};
@@ -142,8 +143,14 @@ pub(crate) fn to_standardized_path(path: &str) -> String {
     path.replace('\\', "/")
 }
 
+#[must_use]
 pub(crate) fn is_close(a: f64, b: f64, tolerance: f64) -> bool {
     (a - b).abs() <= tolerance
+}
+
+#[must_use]
+pub fn close_range(a: f64, tolerance: f64) -> Range<f64> {
+    (a - tolerance)..(a + tolerance)
 }
 
 pub struct SliderPointsView<'a>(pub &'a [SliderPoint]);
