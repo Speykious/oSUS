@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io::{self, Write};
 use std::num::ParseIntError;
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::path::Path;
 use std::str::FromStr;
 
@@ -361,7 +362,7 @@ impl FromStr for SampleBank {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct HitSampleSet {
     /// Sample set of the normal sound.
     pub normal_set: SampleBank,
@@ -544,7 +545,7 @@ impl fmt::Display for HitObjectType {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct HitSample {
     /// Sample set of the normal sound.
     pub normal_set: SampleBank,
@@ -566,6 +567,18 @@ pub struct HitSample {
     pub volume: u32,
     /// Custom filename of the addition sound.
     pub filename: Option<String>,
+}
+
+impl Default for HitSample {
+    fn default() -> Self {
+        Self {
+            normal_set: SampleBank::Auto,
+            addition_set: SampleBank::Auto,
+            index: 0,
+            volume: 100,
+            filename: None,
+        }
+    }
 }
 
 impl HitSample {
@@ -615,6 +628,12 @@ impl FromStr for HitSound {
 }
 
 impl HitSound {
+    pub const NONE: Self = Self(0b0000);
+    pub const NORMAL: Self = Self(0b0001);
+    pub const WHISTLE: Self = Self(0b0010);
+    pub const FINISH: Self = Self(0b0100);
+    pub const CLAP: Self = Self(0b1000);
+
     #[must_use]
     pub fn flags_string_verbose(&self) -> String {
         let mut sflags = "(hs)".to_owned();
@@ -673,23 +692,56 @@ impl HitSound {
     }
 
     #[must_use]
+    pub const fn has_all(&self, other: Self) -> bool {
+        self.0 & other.0 > 0
+    }
+
+    #[must_use]
     pub const fn has_normal(&self) -> bool {
-        self.0 & 0b0001 > 0
+        self.has_all(Self::NORMAL)
     }
 
     #[must_use]
     pub const fn has_whistle(&self) -> bool {
-        self.0 & 0b0010 > 0
+        self.has_all(Self::WHISTLE)
     }
 
     #[must_use]
     pub const fn has_finish(&self) -> bool {
-        self.0 & 0b0100 > 0
+        self.has_all(Self::FINISH)
     }
 
     #[must_use]
     pub const fn has_clap(&self) -> bool {
-        self.0 & 0b1000 > 0
+        self.has_all(Self::CLAP)
+    }
+}
+
+impl BitAnd for HitSound {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl BitAndAssign for HitSound {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl BitOr for HitSound {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign for HitSound {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
     }
 }
 
