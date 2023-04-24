@@ -387,7 +387,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                                 let local_timestamp = timestamp + i as f64 * dur;
 
                                 let start_hitsounds = (soundmap.hit_objects)
-                                    .between(close_range(local_timestamp, 1.0));
+                                    .between(close_range(local_timestamp, 2.0));
 
                                 for sound_object in start_hitsounds {
                                     log::info!("affecting slider at {}", local_timestamp);
