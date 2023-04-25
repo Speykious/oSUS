@@ -545,7 +545,7 @@ impl fmt::Display for HitObjectType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct HitSample {
     /// Sample set of the normal sound.
     pub normal_set: SampleBank,
@@ -567,18 +567,6 @@ pub struct HitSample {
     pub volume: u32,
     /// Custom filename of the addition sound.
     pub filename: Option<String>,
-}
-
-impl Default for HitSample {
-    fn default() -> Self {
-        Self {
-            normal_set: SampleBank::Auto,
-            addition_set: SampleBank::Auto,
-            index: 0,
-            volume: 100,
-            filename: None,
-        }
-    }
 }
 
 impl HitSample {
