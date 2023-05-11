@@ -536,7 +536,7 @@ pub enum HitObjectType {
 impl fmt::Display for HitObjectType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Self::HitCircle => "hit circle",
+            Self::HitCircle => "hitcircle",
             Self::Slider => "slider",
             Self::Spinner => "spinner",
             Self::Hold => "hold",

@@ -11,7 +11,7 @@ use osus::algos::{
 };
 use osus::file::beatmap::{
     BeatmapFile, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint,
-    TimingPoint,
+    TimingPoint, HitObject,
 };
 use osus::utils::close_range;
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
@@ -194,6 +194,27 @@ fn cleanup_timing_points(beatmap: &mut BeatmapFile) {
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 }
 
+/// Combine and merge the hitsound information of a bunch of hitobjects into another one.
+fn hitsound_hit_object(ho: &mut HitObject, ho_sounds: &[HitObject]) {
+    for so in ho_sounds {
+        log::info!("affecting {} at {}", ho.object_type, ho.timestamp());
+
+        if so.hit_sample.normal_set != SampleBank::Auto {
+            ho.hit_sample.normal_set = so.hit_sample.normal_set;
+        }
+
+        if so.hit_sample.addition_set != SampleBank::Auto {
+            ho.hit_sample.addition_set = so.hit_sample.addition_set;
+        }
+
+        ho.hit_sample.index = so.hit_sample.index;
+        ho.hit_sample.volume = so.hit_sample.volume;
+        ho.hit_sample.filename = so.hit_sample.filename.clone();
+
+        ho.hit_sound |= so.hit_sound;
+    }
+}
+
 fn cli_extract_osu_lazer_files(
     out_path: &Path,
     recursive: bool,
@@ -357,12 +378,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let start_hitsounds = (soundmap.hit_objects)
                             .between(close_range(hit_object.timestamp(), 1.0));
 
-                        for sound_object in start_hitsounds {
-                            log::info!("affecting hitcircle at {}", hit_object.timestamp());
-                            hit_object.hit_sample = sound_object.hit_sample.clone();
-                            hit_object.hit_sound |= sound_object.hit_sound;
-                        }
-
+                        hitsound_hit_object(&mut hit_object, start_hitsounds);
                         hit_object
                     }
                     HitObjectParams::Slider { length, .. } => {
@@ -389,11 +405,18 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                                 let start_hitsounds = (soundmap.hit_objects)
                                     .between(close_range(local_timestamp, 2.0));
 
-                                for sound_object in start_hitsounds {
-                                    log::info!("affecting slider at {}", local_timestamp);
+                                for so in start_hitsounds {
+                                    log::info!("affecting slider edge at {}", local_timestamp);
 
-                                    *edge_ss = sound_object.hit_sample.to_hit_sample_set();
-                                    *edge_hs |= sound_object.hit_sound;
+                                    if so.hit_sample.normal_set != SampleBank::Auto {
+                                        edge_ss.normal_set = so.hit_sample.normal_set;
+                                    }
+                            
+                                    if so.hit_sample.addition_set != SampleBank::Auto {
+                                        edge_ss.addition_set = so.hit_sample.addition_set;
+                                    }
+
+                                    *edge_hs |= so.hit_sound;
                                 }
                             }
                         }
@@ -408,13 +431,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let end_hitsounds =
                             (soundmap.hit_objects).between(close_range(*end_time, 1.0));
 
-                        for sound_object in end_hitsounds {
-                            log::info!("affecting spinner at {}", end_time);
-
-                            hit_object.hit_sample = sound_object.hit_sample.clone();
-                            hit_object.hit_sound |= sound_object.hit_sound;
-                        }
-
+                        hitsound_hit_object(&mut hit_object, end_hitsounds);
                         hit_object
                     }
                     HitObjectParams::Hold { .. } => {
@@ -425,13 +442,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let start_hitsounds = (soundmap.hit_objects)
                             .between(close_range(hit_object.timestamp(), 1.0));
 
-                        for sound_object in start_hitsounds {
-                            log::info!("affecting mania hold at {}", hit_object.timestamp());
-
-                            hit_object.hit_sample = sound_object.hit_sample.clone();
-                            hit_object.hit_sound |= sound_object.hit_sound;
-                        }
-
+                        hitsound_hit_object(&mut hit_object, start_hitsounds);
                         hit_object
                     }
                 };
