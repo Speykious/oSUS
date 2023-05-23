@@ -1,6 +1,39 @@
 use std::ffi::{OsStr, OsString};
+use std::marker::PhantomData;
 
 use thiserror::Error;
+
+#[derive(Clone, Debug, Error)]
+#[error("Invalid key-value pair (line: {line:?})")]
+pub struct InvalidKeyValuePairError {
+    pub line: String,
+}
+
+impl From<&str> for InvalidKeyValuePairError {
+    fn from(line: &str) -> Self {
+        Self {
+            line: line.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Error)]
+#[error("Invalid list of {type_name} (line: {line:?})")]
+pub struct InvalidListError<T> {
+    type_name: &'static str,
+    pub line: String,
+    _phantom_data: PhantomData<T>,
+}
+
+impl<T> From<&str> for InvalidListError<T> {
+    fn from(line: &str) -> Self {
+        Self {
+            type_name: std::any::type_name::<T>(),
+            line: line.to_owned(),
+            _phantom_data: PhantomData::<T>,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Error)]
 #[error("Invalid overlay position: {op_string:?}. Expected NoChange, Below or Above")]

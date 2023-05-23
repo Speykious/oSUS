@@ -6,7 +6,7 @@ use error_stack::bail;
 
 use crate::file::beatmap::{SliderCurveType, SliderPoint};
 use crate::point::Point;
-use crate::utils::is_close;
+use crate::is_close;
 
 #[derive(Clone, Debug)]
 pub struct CirclePreset<const N: usize> {

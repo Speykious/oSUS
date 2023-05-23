@@ -1,21 +1,115 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::str::FromStr;
 
 use error_stack::{bail, IntoReport, Report, Result, ResultExt};
-
-use crate::utils::{
-    parse_field_value_pair, parse_list_of, parse_list_of_with_sep, to_standardized_path,
-};
-use crate::{ctx, rctx, section_ctx, section_fvp_ctx, section_fvp_rctx, section_rctx};
 
 use super::{
     BeatmapFile, BeatmapFileParseError, Color, ColorParseError, ColorsSection,
     CurvePointsParseError, DifficultySection, EditorSection, Event, EventParams, EventParseError,
     GeneralSection, HitObject, HitObjectParams, HitObjectParseError, HitObjectType, HitSample,
     HitSampleParseError, HitSampleSet, HitSound, MetadataSection, SectionParseError,
-    SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError,
+    SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError, InvalidKeyValuePairError, InvalidListError,
 };
+
+/// Wraps the result in a given context, lazily.
+macro_rules! ctx {
+    ($result:expr, $ctx:expr) => {
+        ($result).change_context_lazy(|| $ctx)
+    };
+}
+
+/// Wraps the result in a report with a given context, lazily.
+macro_rules! rctx {
+    ($result:expr, $ctx:expr) => {
+        ctx!(($result).report(), $ctx)
+    };
+}
+
+/// Wraps the result in a `SectionParseError` context of a given section, lazily.
+macro_rules! section_ctx {
+    ($result:expr, $section:ident) => {
+        ctx!(($result), SectionParseError::from(stringify!($section)))
+    };
+}
+
+/// Wraps the result in a report with a `SectionParseError` context of a given section, lazily.
+macro_rules! section_rctx {
+    ($result:expr, $section:ident) => {
+        section_ctx!(($result).report(), $section)
+    };
+}
+
+/// Section context with printable attached for specific field value parsing error.
+macro_rules! section_fvp_ctx {
+    ($result:expr, $section:ident, $field:ident) => {
+        section_ctx!(($result), $section).attach_printable_lazy(|| {
+            format!("Could not parse value for {} field", stringify!($field))
+        })
+    };
+}
+
+/// Section context with printable attached for specific field value parsing error.
+macro_rules! section_fvp_rctx {
+    ($result:expr, $section:ident, $field:ident) => {
+        section_fvp_ctx!(($result).report(), $section, $field)
+    };
+}
+
+/// Parse a `field:value` pair (arbitrary spaces allowed).
+pub(crate) fn parse_field_value_pair(
+    line: &str,
+) -> Result<(String, String), InvalidKeyValuePairError> {
+    let (field, value) = line.split_once(':').ok_or_else(|| {
+        Report::new(InvalidKeyValuePairError::from(line))
+            .attach_printable("Could not split with ':'")
+    })?;
+
+    let field = field.trim().to_owned();
+    let value = value.trim().to_owned();
+
+    Ok((field, value))
+}
+
+pub(crate) fn parse_list_of_with_sep<T, E>(
+    line: &str,
+    sep: char,
+) -> Result<Vec<T>, InvalidListError<T>>
+where
+    T: Debug + FromStr<Err = E> + Send + Sync + 'static,
+    std::result::Result<T, E>: IntoReport<Ok = T, Err = E>,
+{
+    let mut tobjs = Vec::new();
+    for value in line.split(sep) {
+        if value.is_empty() {
+            continue;
+        }
+
+        tobjs.push(
+            value
+                .parse::<T>()
+                .report()
+                .change_context_lazy(|| InvalidListError::from(line))?,
+        );
+    }
+
+    Ok(tobjs)
+}
+
+pub(crate) fn parse_list_of<T, E>(line: &str) -> Result<Vec<T>, InvalidListError<T>>
+where
+    T: Debug + FromStr<Err = E> + Send + Sync + 'static,
+    std::result::Result<T, E>: IntoReport<Ok = T, Err = E>,
+{
+    parse_list_of_with_sep(line, ',')
+}
+
+#[must_use]
+pub(crate) fn to_standardized_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
 
 /// Parse a `[General]` section
 fn parse_general_section(

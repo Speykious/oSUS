@@ -3,13 +3,21 @@
 pub mod algos;
 pub mod file;
 pub mod point;
-pub mod utils;
 
 use std::cmp::Ordering;
-use std::ops::{Bound, RangeBounds};
+use std::ops::{Bound, RangeBounds, Range};
 
 use file::beatmap::Timestamp;
-use utils::is_close;
+
+#[must_use]
+pub(crate) fn is_close(a: f64, b: f64, tolerance: f64) -> bool {
+    (a - b).abs() <= tolerance
+}
+
+#[must_use]
+pub fn close_range(a: f64, tolerance: f64) -> Range<f64> {
+    (a - tolerance)..(a + tolerance)
+}
 
 pub trait Timestamped {
     fn timestamp(&self) -> Timestamp;

@@ -13,7 +13,7 @@ use osus::file::beatmap::{
     BeatmapFile, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint,
     TimingPoint, HitObject,
 };
-use osus::utils::close_range;
+use osus::close_range;
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
 

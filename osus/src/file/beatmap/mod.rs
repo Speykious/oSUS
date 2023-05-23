@@ -10,12 +10,13 @@ use error_stack::Result;
 pub mod deserializing;
 pub mod errors;
 pub mod parsing;
+pub mod utils;
 
-use self::deserializing::deserialize_beatmap_file;
-pub use self::errors::*;
-use self::parsing::parse_osu_file;
 use crate::point::Point;
 use crate::{InterleavedTimestamped, InterleavedTimestampedIterator, Timestamped};
+use deserializing::deserialize_beatmap_file;
+pub use errors::*;
+use parsing::parse_osu_file;
 
 pub type Timestamp = f64;
 
