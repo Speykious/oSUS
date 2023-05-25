@@ -65,10 +65,7 @@ fn deserialize_general_section<W: Write>(
     writeln!(writer)
 }
 
-fn deserialize_editor_section<W: Write>(
-    section: &EditorSection,
-    writer: &mut W,
-) -> io::Result<()> {
+fn deserialize_editor_section<W: Write>(section: &EditorSection, writer: &mut W) -> io::Result<()> {
     writeln!(writer, "[Editor]")?;
     if !section.bookmarks.is_empty() {
         let bookmarks: Vec<_> = section.bookmarks.iter().map(f32::to_string).collect();
@@ -249,7 +246,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
             write!(writer, ",")?;
             deserialize_curve_points(*first_curve_type, curve_points, writer)?;
             write!(writer, ",{slides},{length}")?;
-            
+
             if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
                 let edge_hitsounds: Vec<_> =
                     edge_hitsounds.iter().map(HitSound::to_string).collect();

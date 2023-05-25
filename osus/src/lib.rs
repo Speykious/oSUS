@@ -5,7 +5,7 @@ pub mod file;
 pub mod point;
 
 use std::cmp::Ordering;
-use std::ops::{Bound, RangeBounds, Range};
+use std::ops::{Bound, Range, RangeBounds};
 
 use file::beatmap::Timestamp;
 

@@ -5,8 +5,8 @@ use std::f64::consts::TAU;
 use error_stack::bail;
 
 use crate::file::beatmap::{SliderCurveType, SliderPoint};
-use crate::point::Point;
 use crate::is_close;
+use crate::point::Point;
 
 #[derive(Clone, Debug)]
 pub struct CirclePreset<const N: usize> {

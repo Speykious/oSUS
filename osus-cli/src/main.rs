@@ -9,11 +9,11 @@ use osus::algos::{
     convert_slider_points_to_legacy, mix_volume, offset_map, remove_duplicates,
     remove_useless_speed_changes, reset_hitsounds,
 };
-use osus::file::beatmap::{
-    BeatmapFile, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint,
-    TimingPoint, HitObject,
-};
 use osus::close_range;
+use osus::file::beatmap::{
+    BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank,
+    SliderPoint, TimingPoint,
+};
 use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
 
@@ -411,7 +411,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                                     if so.hit_sample.normal_set != SampleBank::Auto {
                                         edge_ss.normal_set = so.hit_sample.normal_set;
                                     }
-                            
+
                                     if so.hit_sample.addition_set != SampleBank::Auto {
                                         edge_ss.addition_set = so.hit_sample.addition_set;
                                     }

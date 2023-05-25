@@ -10,8 +10,9 @@ use super::{
     BeatmapFile, BeatmapFileParseError, Color, ColorParseError, ColorsSection,
     CurvePointsParseError, DifficultySection, EditorSection, Event, EventParams, EventParseError,
     GeneralSection, HitObject, HitObjectParams, HitObjectParseError, HitObjectType, HitSample,
-    HitSampleParseError, HitSampleSet, HitSound, MetadataSection, SectionParseError,
-    SliderCurveType, SliderPoint, TimingPoint, TimingPointParseError, UnspecifiedFieldError, InvalidKeyValuePairError, InvalidListError,
+    HitSampleParseError, HitSampleSet, HitSound, InvalidKeyValuePairError, InvalidListError,
+    MetadataSection, SectionParseError, SliderCurveType, SliderPoint, TimingPoint,
+    TimingPointParseError, UnspecifiedFieldError,
 };
 
 /// Wraps the result in a given context, lazily.
