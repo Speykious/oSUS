@@ -11,3 +11,9 @@ env_logger = "0.9.0"
 log = "0.4.17"
 osus = { path = "../osus" }
 walkdir = "2.3.2"
+
+# Make target file smaller by not generating debug symbols.
+# If somehow a problem occurs in a dependency, we can comment it out temporarily.
+[profile.dev.package."*"]
+debug = false
+opt-level = 2
