@@ -23,7 +23,7 @@ pub trait Timestamped {
     fn timestamp(&self) -> Timestamp;
 
     fn basically_at(&self, timestamp: Timestamp) -> bool {
-        is_close(self.timestamp(), timestamp, 1.0)
+        is_close(self.timestamp(), timestamp, 2.0)
     }
 
     fn basically_eq(&self, other: &impl Timestamped) -> bool {

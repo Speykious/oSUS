@@ -376,7 +376,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let mut hit_object = hit_object.clone();
 
                         let start_hitsounds = (soundmap.hit_objects)
-                            .between(close_range(hit_object.timestamp(), 1.0));
+                            .between(close_range(hit_object.timestamp(), 2.0));
 
                         hitsound_hit_object(&mut hit_object, start_hitsounds);
                         hit_object
@@ -429,7 +429,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let mut hit_object = hit_object.clone();
 
                         let end_hitsounds =
-                            (soundmap.hit_objects).between(close_range(*end_time, 1.0));
+                            (soundmap.hit_objects).between(close_range(*end_time, 2.0));
 
                         hitsound_hit_object(&mut hit_object, end_hitsounds);
                         hit_object
@@ -440,7 +440,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                         let mut hit_object = hit_object.clone();
 
                         let start_hitsounds = (soundmap.hit_objects)
-                            .between(close_range(hit_object.timestamp(), 1.0));
+                            .between(close_range(hit_object.timestamp(), 2.0));
 
                         hitsound_hit_object(&mut hit_object, start_hitsounds);
                         hit_object
