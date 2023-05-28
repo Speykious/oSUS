@@ -471,11 +471,11 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(path, true)?;
 
     for timing_point in &mut beatmap.timing_points {
-        timing_point.time = timing_point.time.round();
+        timing_point.time = timing_point.time.floor();
     }
 
     for hit_object in &mut beatmap.hit_objects {
-        hit_object.time = hit_object.time.round();
+        hit_object.time = hit_object.time.floor();
 
         if let HitObjectParams::Slider {
             first_curve_type,
