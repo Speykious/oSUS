@@ -143,13 +143,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn add_suffix_to_map_version(beatmap: &mut BeatmapFile, suffix: &str) {
-    log::warn!("Adding suffix to map version...");
-    if let Some(metadata) = &mut beatmap.metadata {
-        metadata.version += suffix;
-    }
-}
-
 fn backup(path: &Path) -> io::Result<u64> {
     let mut out_path = path.with_extension("osu.backup");
 
@@ -276,9 +269,6 @@ fn cli_reset_sample_sets(soft: bool, cleanup: bool, path: &Path) -> Result<(), B
 
     if cleanup {
         cleanup_timing_points(&mut beatmap);
-        add_suffix_to_map_version(&mut beatmap, " ||CLEAN");
-    } else {
-        add_suffix_to_map_version(&mut beatmap, " ||RESET");
     }
 
     write_beatmap_out(&beatmap, path)?;
@@ -289,7 +279,6 @@ fn cli_cleanup_timing_points(path: &Path) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(path, true)?;
 
     cleanup_timing_points(&mut beatmap);
-    add_suffix_to_map_version(&mut beatmap, " ||CLEAN");
 
     write_beatmap_out(&beatmap, path)?;
     Ok(())
@@ -460,9 +449,6 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
     }
 
     beatmap.hit_objects = modified_hit_objects;
-    if let Some(ref mut metadata) = beatmap.metadata {
-        metadata.version += "~ HITSOUNDED";
-    }
 
     write_beatmap_out(&beatmap, beatmap_path)?;
     Ok(())
@@ -507,7 +493,6 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
     }
 
     beatmap.osu_file_format = 14;
-    add_suffix_to_map_version(&mut beatmap, " ||STABLE");
 
     write_beatmap_out(&beatmap, path)?;
     Ok(())
