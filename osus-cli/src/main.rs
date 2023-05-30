@@ -338,7 +338,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
                     } else {
                         let mut new_tp = new_tp.clone();
                         new_tp.time = soundmap_tp.time;
-                        new_tp.uninherited = true;
+                        new_tp.uninherited = false;
                         new_tp.sample_set = soundmap_tp.sample_set;
                         new_tp.sample_index = soundmap_tp.sample_index;
                         new_tp.volume = soundmap_tp.volume;
