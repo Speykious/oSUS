@@ -348,7 +348,6 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
             }
             Err(beatmap_tp) => {
                 let mut new_tp = beatmap_tp.clone();
-                new_tp.uninherited = true;
                 new_tp.sample_set = last_sound_point.sample_set;
                 new_tp.sample_index = last_sound_point.sample_index;
                 new_tp.volume = last_sound_point.volume;
