@@ -13,7 +13,7 @@ pub mod parsing;
 pub mod utils;
 
 use crate::point::Point;
-use crate::{InterleavedTimestamped, InterleavedTimestampedIterator, Timestamped};
+use crate::{ExtTimestamped, InterleavedTimestampedIterator, Timestamped};
 use deserializing::deserialize_beatmap_file;
 pub use errors::*;
 use parsing::parse_osu_file;

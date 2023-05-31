@@ -102,22 +102,90 @@ where
     }
 }
 
-pub trait InterleavedTimestamped {
-    type Item: Timestamped;
+pub struct GroupedTimestampedIterator<'a, T>(&'a [T])
+where
+    T: Timestamped;
 
-    fn interleave_timestamped<'a, 'b, U: Timestamped>(
-        &'a self,
-        other: &'b [U],
-    ) -> InterleavedTimestampedIterator<'a, 'b, Self::Item, U>;
+impl<'a, T> Iterator for GroupedTimestampedIterator<'a, T>
+where
+    T: Timestamped,
+{
+    type Item = &'a [T];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(elem0) = self.0.first() {
+            // number of consecutive objects that are basically at the same timestamp
+            let count = (self.0.iter())
+                .take_while(|elem| is_close(elem.timestamp(), elem0.timestamp(), 1.0))
+                .count();
+
+            let (group, remaining) = self.0.split_at(count);
+
+            self.0 = remaining;
+            Some(group)
+        } else {
+            // no elements left
+            None
+        }
+    }
 }
 
-impl<T: Timestamped> InterleavedTimestamped for [T] {
+pub struct GroupedTimestampedIteratorMut<'a, T>(&'a mut [T])
+where
+    T: Timestamped;
+
+impl<'a, T> Iterator for GroupedTimestampedIteratorMut<'a, T>
+where
+    T: Timestamped,
+{
+    type Item = &'a mut [T];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(elem0) = self.0.first() {
+            // number of consecutive objects that are basically at the same timestamp
+            let count = (self.0.iter())
+                .take_while(|elem| is_close(elem.timestamp(), elem0.timestamp(), 1.0))
+                .count();
+
+            let tmp = std::mem::take(&mut self.0);
+            let (group, remaining) = tmp.split_at_mut(count);
+
+            self.0 = remaining;
+            Some(group)
+        } else {
+            // no elements left
+            None
+        }
+    }
+}
+
+pub trait ExtTimestamped {
+    type Item: Timestamped;
+
+    fn interleave_timestamped<'b, U: Timestamped>(
+        &self,
+        other: &'b [U],
+    ) -> InterleavedTimestampedIterator<'_, 'b, Self::Item, U>;
+
+    fn group_timestamped(&self) -> GroupedTimestampedIterator<'_, Self::Item>;
+    fn group_timestamped_mut(&mut self) -> GroupedTimestampedIteratorMut<'_, Self::Item>;
+}
+
+impl<T: Timestamped> ExtTimestamped for [T] {
     type Item = T;
 
-    fn interleave_timestamped<'a, 'b, U: Timestamped>(
-        &'a self,
+    fn interleave_timestamped<'b, U: Timestamped>(
+        &self,
         other: &'b [U],
-    ) -> InterleavedTimestampedIterator<'a, 'b, Self::Item, U> {
+    ) -> InterleavedTimestampedIterator<'_, 'b, Self::Item, U> {
         InterleavedTimestampedIterator(self, other)
+    }
+
+    fn group_timestamped(&self) -> GroupedTimestampedIterator<'_, Self::Item> {
+        GroupedTimestampedIterator(self)
+    }
+
+    fn group_timestamped_mut(&mut self) -> GroupedTimestampedIteratorMut<'_, Self::Item> {
+        GroupedTimestampedIteratorMut(self)
     }
 }

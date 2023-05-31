@@ -14,7 +14,7 @@ use osus::file::beatmap::{
     BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank,
     SliderPoint, TimingPoint,
 };
-use osus::{InterleavedTimestamped, Timestamped, TimestampedSlice};
+use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -100,6 +100,13 @@ enum Commands {
 
         #[arg(help = PATH_HELP)]
         path: PathBuf,
+
+        #[arg(
+            short,
+            long,
+            help = "Whether we're hitsounding for mania. In that case, an extra transformation happens to spread out hitsounds on all notes in each row as much as possible."
+        )]
+        mania: bool,
     },
 
     /// Convert a Lazer map (v128) to a Stable map (v14).
@@ -135,7 +142,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path)?,
 
-        Commands::SplatHitsounds { sound_map, path } => cli_splat_hitsounds(&sound_map, &path)?,
+        Commands::SplatHitsounds {
+            sound_map,
+            path,
+            mania,
+        } => cli_splat_hitsounds(&sound_map, &path, mania)?,
 
         Commands::LazerToStable { path } => cli_lazer_to_stable(&path)?,
     }
@@ -284,7 +295,11 @@ fn cli_cleanup_timing_points(path: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), Box<dyn Error>> {
+fn cli_splat_hitsounds(
+    soundmap_path: &Path,
+    beatmap_path: &Path,
+    is_mania: bool,
+) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(beatmap_path, true)?;
     let soundmap = parse_beatmap(soundmap_path, false)?;
 
@@ -444,6 +459,60 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path) -> Result<(), 
             }
             Err(timing_point) => {
                 slider_velocity = -100.0 / timing_point.beat_length;
+            }
+        }
+    }
+
+    if is_mania {
+        log::warn!("Applying mania hitsound spread-out transformation...");
+
+        for group in modified_hit_objects.group_timestamped_mut() {
+            // Note: due to how the algorithm works, hitobjects in a group all have the same hitsound information.
+
+            match group {
+                [] => break,
+                [_] => continue,
+                [ref mut first, ref mut remains @ ..] => {
+                    let normal_set = first.hit_sample.normal_set;
+                    let addition_set = first.hit_sample.addition_set;
+
+                    if normal_set != SampleBank::Auto {
+                        // Only have the first hitobject on a non-auto normal set
+                        for other in remains.iter_mut() {
+                            other.hit_sample.normal_set = SampleBank::Auto;
+                        }
+                    }
+
+                    if addition_set != SampleBank::Auto {
+                        // Only have the non-first hitobjects on a non-auto addition set
+                        first.hit_sample.addition_set = SampleBank::Auto;
+                    }
+
+                    let hit_sound = first.hit_sound;
+
+                    // reset hitsounds for all hitobjects in the group
+                    first.hit_sound = HitSound::NONE;
+                    for other in remains.iter_mut() {
+                        other.hit_sound = HitSound::NONE;
+                    }
+
+                    // cycle through remaining hitobjects to give them a separate hitsound each
+                    let mut cycle_idx = 0;
+
+                    if hit_sound.has_whistle() {
+                        remains[cycle_idx].hit_sound |= HitSound::WHISTLE;
+                        cycle_idx = (cycle_idx + 1) % remains.len();
+                    }
+
+                    if hit_sound.has_finish() {
+                        remains[cycle_idx].hit_sound |= HitSound::FINISH;
+                        cycle_idx = (cycle_idx + 1) % remains.len();
+                    }
+
+                    if hit_sound.has_clap() {
+                        remains[cycle_idx].hit_sound |= HitSound::CLAP;
+                    }
+                }
             }
         }
     }
