@@ -16,8 +16,11 @@ pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {
 
     for hit_object in &mut beatmap.hit_objects {
         hit_object.time += offset_millis;
-        if let HitObjectParams::Spinner { end_time } = &mut hit_object.object_params {
-            *end_time += offset_millis;
+        match &mut hit_object.object_params {
+            HitObjectParams::Spinner { end_time } | HitObjectParams::Hold { end_time } => {
+                *end_time += offset_millis;
+            }
+            _ => (),
         }
     }
 }
