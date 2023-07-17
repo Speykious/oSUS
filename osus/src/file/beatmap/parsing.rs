@@ -826,6 +826,12 @@ fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
                         hit_sample_leftover = Some(*hit_sample);
                     }
 
+                    // Just in case there were no edge hitsounds/samplesets
+                    if edge_hitsounds.is_empty() {
+                        edge_hitsounds = vec![HitSound::NONE; slides as usize + 1];
+                        edge_samplesets = vec![HitSampleSet::default(); slides as usize + 1];
+                    }
+
                     HitObjectParams::Slider {
                         first_curve_type,
                         curve_points,
