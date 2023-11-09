@@ -213,7 +213,10 @@ fn hitsound_hit_object(ho: &mut HitObject, ho_sounds: &[HitObject]) {
 
         ho.hit_sample.index = so.hit_sample.index;
         ho.hit_sample.volume = so.hit_sample.volume;
-        ho.hit_sample.filename = so.hit_sample.filename.clone();
+
+        if so.hit_sample.filename.is_some() {
+            ho.hit_sample.filename = so.hit_sample.filename.clone();
+        }
 
         ho.hit_sound |= so.hit_sound;
     }
@@ -390,6 +393,11 @@ fn cli_splat_hitsounds(
                         // affect all edge hitsound properties of the slider
 
                         let mut hit_object = hit_object.clone();
+
+                        let start_hitsounds = (soundmap.hit_objects)
+                            .between(close_range(hit_object.timestamp(), 2.0));
+
+                        hitsound_hit_object(&mut hit_object, start_hitsounds);
 
                         let timestamp = hit_object.timestamp();
                         let dur =
