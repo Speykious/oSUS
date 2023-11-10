@@ -169,7 +169,7 @@ pub fn convert_slider_points_to_legacy(
     curve_points: &[SliderPoint],
 ) -> error_stack::Result<Vec<SliderPoint>, BezierConversionError> {
     Ok(match curve_points.len() {
-        0 | 1 | 2 => curve_points.to_vec(),
+        0..=2 => curve_points.to_vec(),
         3 => {
             let mut curve_points = curve_points.to_vec();
 
