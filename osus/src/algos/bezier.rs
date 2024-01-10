@@ -295,7 +295,7 @@ fn convert_catmull_to_bezier_anchors(points: &[SliderPoint]) -> Vec<Point> {
 
 #[must_use]
 fn convert_linear_to_bezier_anchors(points: &[SliderPoint]) -> Vec<Point> {
-    let Some(first_point) = points.get(0) else {
+    let Some(first_point) = points.first() else {
         return Vec::new();
     };
 
