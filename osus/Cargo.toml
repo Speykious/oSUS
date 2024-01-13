@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 error-stack = "0.1.1"
-log = "0.4.17"
 thiserror = "1.0.31"
+tracing = "0.1.40"
 
 # Make target file smaller by not generating debug symbols.
 # If somehow a problem occurs in a dependency, we can comment it out temporarily.

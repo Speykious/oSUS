@@ -191,7 +191,7 @@ fn parse_general_section(
                         section_fvp_rctx!(value.parse::<u8>(), General, SamplesMatchPlaybackRate)?
                             != 0;
                 }
-                key => log::warn!("[General] section: unknown field {key:?}"),
+                key => tracing::warn!("[General] section: unknown field {key:?}"),
             }
         } else {
             // We stop once we encounter an EOL character
@@ -241,7 +241,7 @@ fn parse_editor_section(
                 "TimelineZoom" => {
                     timeline_zoom = Some(section_fvp_rctx!(value.parse(), Editor, TimelineZoom)?);
                 }
-                key => log::warn!("[Editor] section: unknown field {key:?}"),
+                key => tracing::warn!("[Editor] section: unknown field {key:?}"),
             }
         } else {
             // We stop once we encounter an EOL character
@@ -309,7 +309,7 @@ fn parse_metadata_section(
                     section.beatmap_set_id =
                         Some(section_fvp_rctx!(value.parse(), Metadata, BeatmapSetID)?);
                 }
-                key => log::warn!("[Metadata] section: unknown field {key:?}"),
+                key => tracing::warn!("[Metadata] section: unknown field {key:?}"),
             }
         } else {
             // We stop once we encounter an EOL character
@@ -364,7 +364,7 @@ fn parse_difficulty_section(
                     section.slider_tick_rate =
                         section_fvp_rctx!(value.parse(), Difficulty, SliderTickRate)?;
                 }
-                key => log::warn!("[Difficulty] section: unknown field {key:?}"),
+                key => tracing::warn!("[Difficulty] section: unknown field {key:?}"),
             }
         } else {
             // We stop once we encounter an EOL character
@@ -390,7 +390,7 @@ fn parse_event(line: &str) -> Result<Option<Event>, EventParseError> {
     match event_type.as_str() {
         "3" | "4" | "5" | "6" | "Sample" | "Sprite" | "Animation" | "F" | "M" | "MX" | "MY"
         | "S" | "V" | "R" | "C" | "L" | "T" | "P" => {
-            log::info!("Ignoring storyboard event {:?}", line);
+            tracing::info!("Ignoring storyboard event {:?}", line);
             return Ok(None);
         }
         _ => (),

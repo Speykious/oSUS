@@ -7,9 +7,9 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0.18", features = ["derive"] }
-env_logger = "0.9.0"
-log = "0.4.17"
 osus = { path = "../osus" }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 walkdir = "2.3.2"
 
 # Make target file smaller by not generating debug symbols.

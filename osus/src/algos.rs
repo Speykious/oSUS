@@ -153,7 +153,7 @@ pub fn insert_hitsound_timing_point(
         }
         Err(_) => {
             // timestamp is before the first timing point, let's not do anything for now
-            log::warn!(
+            tracing::warn!(
                 "Tried to insert hitsound timing point before the first timing point of the map"
             );
         }

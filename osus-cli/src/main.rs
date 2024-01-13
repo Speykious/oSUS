@@ -15,6 +15,7 @@ use osus::file::beatmap::{
     SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
+use tracing::Level;
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -117,7 +118,8 @@ enum Commands {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+
     let Cli { command } = Cli::parse();
 
     match command {
@@ -168,18 +170,18 @@ fn backup(path: &Path) -> io::Result<u64> {
 
 fn parse_beatmap(path: &Path, do_backup: bool) -> Result<BeatmapFile, Box<dyn Error>> {
     if do_backup {
-        log::warn!("Backing up {}...", path.display());
+        tracing::warn!("Backing up {}...", path.display());
         backup(path)?;
     }
 
-    log::warn!("Parsing {}...", path.display());
+    tracing::warn!("Parsing {}...", path.display());
     let beatmap = BeatmapFile::parse(path).map_err(|e| e.to_string())?;
 
     Ok(beatmap)
 }
 
 fn write_beatmap_out(beatmap: &BeatmapFile, path: &Path) -> io::Result<()> {
-    log::warn!("Write beatmap to {}...", path.display());
+    tracing::warn!("Write beatmap to {}...", path.display());
     let mut out_file = File::create(path)?;
     beatmap.deserialize(&mut out_file)?;
 
@@ -187,21 +189,21 @@ fn write_beatmap_out(beatmap: &BeatmapFile, path: &Path) -> io::Result<()> {
 }
 
 fn cleanup_timing_points(beatmap: &mut BeatmapFile) {
-    log::warn!("Removing duplicates...");
+    tracing::warn!("Removing duplicates...");
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 
-    log::warn!("Removing useless speed changes...");
+    tracing::warn!("Removing useless speed changes...");
     beatmap.timing_points =
         remove_useless_speed_changes(&beatmap.timing_points, &beatmap.hit_objects);
 
-    log::warn!("Removing duplicates again...");
+    tracing::warn!("Removing duplicates again...");
     beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 }
 
 /// Combine and merge the hitsound information of a bunch of hitobjects into another one.
 fn hitsound_hit_object(ho: &mut HitObject, ho_sounds: &[HitObject]) {
     for so in ho_sounds {
-        log::info!("affecting {} at {}", ho.object_type, ho.timestamp());
+        tracing::info!("affecting {} at {}", ho.object_type, ho.timestamp());
 
         if so.hit_sample.normal_set != SampleBank::Auto {
             ho.hit_sample.normal_set = so.hit_sample.normal_set;
@@ -253,7 +255,7 @@ fn cli_extract_osu_lazer_files(
 fn cli_offset(millis: f64, path: &Path) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(path, true)?;
 
-    log::warn!("Offsetting beatmap...");
+    tracing::warn!("Offsetting beatmap...");
     offset_map(&mut beatmap, millis);
 
     write_beatmap_out(&beatmap, path)?;
@@ -263,7 +265,7 @@ fn cli_offset(millis: f64, path: &Path) -> Result<(), Box<dyn Error>> {
 fn cli_mix_volume(val: i8, path: &Path) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(path, true)?;
 
-    log::warn!("Mixing volume...");
+    tracing::warn!("Mixing volume...");
     mix_volume(&mut beatmap.timing_points, val);
 
     write_beatmap_out(&beatmap, path)?;
@@ -273,7 +275,7 @@ fn cli_mix_volume(val: i8, path: &Path) -> Result<(), Box<dyn Error>> {
 fn cli_reset_sample_sets(soft: bool, cleanup: bool, path: &Path) -> Result<(), Box<dyn Error>> {
     let mut beatmap = parse_beatmap(path, true)?;
 
-    log::warn!("Resetting hitsounds...");
+    tracing::warn!("Resetting hitsounds...");
     let sample_bank = if soft {
         SampleBank::Soft
     } else {
@@ -307,7 +309,7 @@ fn cli_splat_hitsounds(
     let soundmap = parse_beatmap(soundmap_path, false)?;
 
     // reset beatmap's hitsounds
-    log::warn!("Resetting beatmap's hitsounds...");
+    tracing::warn!("Resetting beatmap's hitsounds...");
     for hit_object in &mut beatmap.hit_objects {
         hit_object.hit_sample = HitSample::default();
         hit_object.hit_sound = HitSound::NONE;
@@ -329,7 +331,7 @@ fn cli_splat_hitsounds(
     }
 
     // insert soundmap's hitsound information from timing points
-    log::warn!("Inserting soundmap's timing points...");
+    tracing::warn!("Inserting soundmap's timing points...");
     let mut new_timing_points: Vec<TimingPoint> = Vec::new();
     let mut last_sound_point = &soundmap.timing_points[0];
     for smtp_bmtp in (soundmap.timing_points).interleave_timestamped(&beatmap.timing_points) {
@@ -364,7 +366,7 @@ fn cli_splat_hitsounds(
     }
     beatmap.timing_points = new_timing_points;
 
-    log::warn!("Inserting soundmap's hitsounds...");
+    tracing::warn!("Inserting soundmap's hitsounds...");
     let slider_multiplier = beatmap.difficulty.as_ref().unwrap().slider_multiplier as f64;
 
     let mut modified_hit_objects = Vec::new();
@@ -419,7 +421,7 @@ fn cli_splat_hitsounds(
                                     .between(close_range(local_timestamp, 2.0));
 
                                 for so in start_hitsounds {
-                                    log::info!("affecting slider edge at {}", local_timestamp);
+                                    tracing::info!("affecting slider edge at {}", local_timestamp);
 
                                     if so.hit_sample.normal_set != SampleBank::Auto {
                                         edge_ss.normal_set = so.hit_sample.normal_set;
@@ -472,7 +474,7 @@ fn cli_splat_hitsounds(
     }
 
     if is_mania {
-        log::warn!("Applying mania hitsound spread-out transformation...");
+        tracing::warn!("Applying mania hitsound spread-out transformation...");
 
         for group in modified_hit_objects.group_timestamped_mut() {
             // Note: due to how the algorithm works, hitobjects in a group all have the same hitsound information.
@@ -559,7 +561,7 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
             *curve_points = match convert_slider_points_to_legacy(curve_points) {
                 Ok(curve_points) => curve_points,
                 Err(err) => {
-                    log::error!("\n{err:?}");
+                    tracing::error!("\n{err:?}");
                     return Ok(());
                 }
             };
