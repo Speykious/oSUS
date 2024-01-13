@@ -6,7 +6,6 @@ authors = ["Speykious <speykious@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-error-stack = "0.1.1"
 thiserror = "1.0.31"
 tracing = "0.1.40"
 

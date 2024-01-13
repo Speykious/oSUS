@@ -2,8 +2,6 @@
 
 use std::f64::consts::TAU;
 
-use error_stack::bail;
-
 use crate::file::beatmap::{SliderCurveType, SliderPoint};
 use crate::is_close;
 use crate::point::Point;
@@ -92,11 +90,9 @@ pub enum BezierConversionError {
 ///
 /// This function will return an error if there are no control points
 /// or if the control points do not represent a valid slider segment.
-pub fn convert_to_bezier_anchors(
-	control_points: &[SliderPoint],
-) -> error_stack::Result<Vec<Point>, BezierConversionError> {
+pub fn convert_to_bezier_anchors(control_points: &[SliderPoint]) -> Result<Vec<Point>, BezierConversionError> {
 	if control_points.is_empty() {
-		bail!(BezierConversionError::NoControlPoints);
+		return Err(BezierConversionError::NoControlPoints);
 	}
 
 	Ok(match control_points[0].curve_type {
@@ -107,7 +103,7 @@ pub fn convert_to_bezier_anchors(
 			} else if let Ok(control_points) = control_points.try_into() {
 				convert_circle_to_bezier_anchors(control_points)
 			} else {
-				bail!(BezierConversionError::PerfectCurveWithMoreThan3Points);
+				return Err(BezierConversionError::PerfectCurveWithMoreThan3Points);
 			}
 		}
 		SliderCurveType::Catmull => convert_catmull_to_bezier_anchors(control_points),

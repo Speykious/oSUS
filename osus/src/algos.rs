@@ -158,7 +158,7 @@ pub fn insert_hitsound_timing_point(
 /// This function will return an error if the slider could not be converted to a bezier.
 pub fn convert_slider_points_to_legacy(
 	curve_points: &[SliderPoint],
-) -> error_stack::Result<Vec<SliderPoint>, BezierConversionError> {
+) -> Result<Vec<SliderPoint>, BezierConversionError> {
 	Ok(match curve_points.len() {
 		0..=2 => curve_points.to_vec(),
 		3 => {

@@ -5,8 +5,6 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::path::Path;
 use std::str::FromStr;
 
-use error_stack::Result;
-
 pub mod deserializing;
 pub mod errors;
 pub mod parsing;
@@ -15,8 +13,9 @@ pub mod utils;
 use crate::point::Point;
 use crate::{ExtTimestamped, InterleavedTimestampedIterator, Timestamped};
 use deserializing::deserialize_beatmap_file;
-pub use errors::*;
 use parsing::parse_osu_file;
+
+use self::parsing::BeatmapFileParseError;
 
 pub type Timestamp = f64;
 
@@ -31,15 +30,19 @@ pub enum OverlayPosition {
 	Above,
 }
 
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("Invalid overlay position: {0:?}. Expected NoChange, Below or Above")]
+pub struct InvalidOverlayPositionError(String);
+
 impl FromStr for OverlayPosition {
 	type Err = InvalidOverlayPositionError;
 
-	fn from_str(op_str: &str) -> core::result::Result<Self, Self::Err> {
+	fn from_str(op_str: &str) -> Result<Self, Self::Err> {
 		match op_str {
 			"NoChange" => Ok(Self::NoChange),
 			"Below" => Ok(Self::Below),
 			"Above" => Ok(Self::Above),
-			_ => Err(InvalidOverlayPositionError::from(op_str)),
+			_ => Err(InvalidOverlayPositionError(op_str.to_string())),
 		}
 	}
 }
@@ -349,6 +352,10 @@ pub enum SampleBank {
 	Drum = 3,
 }
 
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("Invalid sample bank: expected number between 0 and 3, got {0:?}")]
+pub struct InvalidSampleBankError(String);
+
 impl FromStr for SampleBank {
 	type Err = InvalidSampleBankError;
 
@@ -358,7 +365,7 @@ impl FromStr for SampleBank {
 			"1" => Ok(Self::Normal),
 			"2" => Ok(Self::Soft),
 			"3" => Ok(Self::Drum),
-			s => Err(InvalidSampleBankError::from(s)),
+			s => Err(InvalidSampleBankError(s.to_string())),
 		}
 	}
 }
@@ -382,10 +389,26 @@ impl HitSampleSet {
 	}
 }
 
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("Invalid hitsample set: {hss_string:?}; {context}")]
+pub struct InvalidHitSampleSetError {
+	pub hss_string: String,
+	pub context: String,
+}
+
+impl From<&str> for InvalidHitSampleSetError {
+	fn from(op_str: &str) -> Self {
+		Self {
+			hss_string: op_str.to_owned(),
+			context: "expected string of the format \"u8:u8\"".to_owned(),
+		}
+	}
+}
+
 impl FromStr for HitSampleSet {
 	type Err = InvalidHitSampleSetError;
 
-	fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (normal_set, addition_set) = s.split_once(':').ok_or_else(|| InvalidHitSampleSetError::from(s))?;
 
 		let normal_set = normal_set

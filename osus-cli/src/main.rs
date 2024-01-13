@@ -211,6 +211,8 @@ fn hitsound_hit_object(ho: &mut HitObject, ho_sounds: &[HitObject]) {
 }
 
 fn cli_extract_osu_lazer_files(out_path: &Path, recursive: bool, path: &Path) -> Result<(), Box<dyn Error>> {
+	fs::create_dir_all(out_path)?;
+
 	for entry in WalkDir::new(path)
 		.max_depth(if recursive { usize::MAX } else { 0 })
 		.follow_links(true)
