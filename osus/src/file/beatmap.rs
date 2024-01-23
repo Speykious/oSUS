@@ -6,7 +6,6 @@ use std::path::Path;
 use std::str::FromStr;
 
 pub mod deserializing;
-pub mod errors;
 pub mod parsing;
 pub mod utils;
 
