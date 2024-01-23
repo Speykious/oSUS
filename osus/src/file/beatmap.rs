@@ -167,7 +167,7 @@ pub struct MetadataSection {
 }
 
 /// Difficulty settings
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct DifficultySection {
 	/// HP setting (0–10)
 	pub hp_drain_rate: f32,
@@ -181,19 +181,6 @@ pub struct DifficultySection {
 	pub slider_multiplier: f32,
 	/// Amount of slider ticks per beat
 	pub slider_tick_rate: f32,
-}
-
-impl Default for DifficultySection {
-	fn default() -> Self {
-		Self {
-			hp_drain_rate: 0.,
-			circle_size: 0.,
-			overall_difficulty: 0.,
-			approach_rate: 0.,
-			slider_multiplier: 0.,
-			slider_tick_rate: 0.,
-		}
-	}
 }
 
 #[derive(Clone, Debug)]
