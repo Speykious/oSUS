@@ -1,8 +1,10 @@
 use std::env::current_dir;
 use std::error::Error;
+use std::fmt;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use clap::{Parser, Subcommand};
 use osus::algos::{
@@ -11,7 +13,8 @@ use osus::algos::{
 };
 use osus::close_range;
 use osus::file::beatmap::{
-	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint, TimingPoint,
+	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank,
+	SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
 use tracing::Level;
@@ -67,10 +70,10 @@ enum Commands {
 	ResetSampleSets {
 		#[arg(
 			long,
-			default_value_t = true,
-			help = "Whether to use the Soft sample set as the overwriting value."
+			default_value_t = SampleBankOption::Auto,
+			help = "Which sample set to use as the overwriting value."
 		)]
-		soft: bool,
+		sample: SampleBankOption,
 
 		#[arg(
 			long,
@@ -112,6 +115,63 @@ enum Commands {
 	},
 }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(u8)]
+pub enum SampleBankOption {
+	Auto = 0,
+	Normal = 1,
+	Soft = 2,
+	Drum = 3,
+}
+
+impl fmt::Display for SampleBankOption {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str(match self {
+			SampleBankOption::Auto => "auto",
+			SampleBankOption::Normal => "normal",
+			SampleBankOption::Soft => "soft",
+			SampleBankOption::Drum => "drum",
+		})
+	}
+}
+
+#[derive(Clone, Debug)]
+pub struct InvalidSampleBankOptionError(String);
+
+impl std::error::Error for InvalidSampleBankOptionError {}
+
+impl fmt::Display for InvalidSampleBankOptionError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "Invalid sample bank: expected \"auto\", \"normal\", \"soft\" or \"drum\", got {:?}", self.0)
+	}
+}
+
+impl FromStr for SampleBankOption {
+	type Err = InvalidSampleBankOptionError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		let s = s.to_ascii_lowercase();
+		match s.as_str() {
+			"auto" => Ok(SampleBankOption::Auto),
+			"normal" => Ok(SampleBankOption::Normal),
+			"soft" => Ok(SampleBankOption::Soft),
+			"drum" => Ok(SampleBankOption::Drum),
+			_ => Err(InvalidSampleBankOptionError(s)),
+		}
+	}
+}
+
+impl SampleBankOption {
+	fn to_sample_bank(self) -> SampleBank {
+		match self {
+			SampleBankOption::Auto => SampleBank::Auto,
+			SampleBankOption::Normal => SampleBank::Normal,
+			SampleBankOption::Soft => SampleBank::Soft,
+			SampleBankOption::Drum => SampleBank::Drum,
+		}
+	}
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
 	tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
@@ -131,7 +191,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 		Commands::MixVolume { val, path } => cli_mix_volume(val, &path)?,
 
-		Commands::ResetSampleSets { soft, cleanup, path } => cli_reset_sample_sets(soft, cleanup, &path)?,
+		Commands::ResetSampleSets { sample, cleanup, path } => {
+			cli_reset_sample_sets(sample.to_sample_bank(), cleanup, &path)?
+		}
 
 		Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path)?,
 
@@ -256,11 +318,10 @@ fn cli_mix_volume(val: i8, path: &Path) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn cli_reset_sample_sets(soft: bool, cleanup: bool, path: &Path) -> Result<(), Box<dyn Error>> {
+fn cli_reset_sample_sets(sample_bank: SampleBank, cleanup: bool, path: &Path) -> Result<(), Box<dyn Error>> {
 	let mut beatmap = parse_beatmap(path, true)?;
 
 	tracing::warn!("Resetting hitsounds...");
-	let sample_bank = if soft { SampleBank::Soft } else { SampleBank::Auto };
 	reset_hitsounds(&mut beatmap.timing_points, sample_bank);
 
 	if cleanup {
