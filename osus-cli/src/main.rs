@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -13,8 +14,7 @@ use osus::algos::{
 };
 use osus::close_range;
 use osus::file::beatmap::{
-	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank,
-	SliderPoint, TimingPoint,
+	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
 use tracing::Level;
@@ -142,7 +142,11 @@ impl std::error::Error for InvalidSampleBankOptionError {}
 
 impl fmt::Display for InvalidSampleBankOptionError {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "Invalid sample bank: expected \"auto\", \"normal\", \"soft\" or \"drum\", got {:?}", self.0)
+		write!(
+			f,
+			"Invalid sample bank: expected \"auto\", \"normal\", \"soft\" or \"drum\", got {:?}",
+			self.0
+		)
 	}
 }
 
@@ -172,37 +176,47 @@ impl SampleBankOption {
 	}
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
 	tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
 	let Cli { command } = Cli::parse();
 
-	match command {
+	let result = match command {
 		Commands::ExtractOsuLazerFiles {
 			out_path,
 			recursive,
 			path,
 		} => {
-			let out_path = out_path.unwrap_or(current_dir()?.join("maps"));
-			cli_extract_osu_lazer_files(&out_path, recursive, &path)?;
+			let out_path = out_path.unwrap_or(current_dir().unwrap().join("maps"));
+			cli_extract_osu_lazer_files(&out_path, recursive, &path)
 		}
 
-		Commands::Offset { millis, path } => cli_offset(millis, &path)?,
+		Commands::Offset { millis, path } => cli_offset(millis, &path),
 
-		Commands::MixVolume { val, path } => cli_mix_volume(val, &path)?,
+		Commands::MixVolume { val, path } => cli_mix_volume(val, &path),
 
 		Commands::ResetSampleSets { sample, cleanup, path } => {
-			cli_reset_sample_sets(sample.to_sample_bank(), cleanup, &path)?
+			cli_reset_sample_sets(sample.to_sample_bank(), cleanup, &path)
 		}
 
-		Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path)?,
+		Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path),
 
-		Commands::SplatHitsounds { sound_map, path, mania } => cli_splat_hitsounds(&sound_map, &path, mania)?,
+		Commands::SplatHitsounds { sound_map, path, mania } => cli_splat_hitsounds(&sound_map, &path, mania),
 
-		Commands::LazerToStable { path } => cli_lazer_to_stable(&path)?,
+		Commands::LazerToStable { path } => cli_lazer_to_stable(&path),
+	};
+
+	if let Err(err) = result {
+		println!("Error: {}", err);
+
+		let mut e = err.deref();
+		while let Some(sauce) = e.source() {
+			println!("-> {}", sauce);
+			e = sauce;
+		}
+
+		println!("\n{:#?}", err);
 	}
-
-	Ok(())
 }
 
 fn backup(path: &Path) -> io::Result<u64> {
@@ -224,7 +238,7 @@ fn parse_beatmap(path: &Path, do_backup: bool) -> Result<BeatmapFile, Box<dyn Er
 	}
 
 	tracing::warn!("Parsing {}...", path.display());
-	let beatmap = BeatmapFile::parse(path).map_err(|e| e.to_string())?;
+	let beatmap = BeatmapFile::parse(path)?;
 
 	Ok(beatmap)
 }

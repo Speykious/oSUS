@@ -200,8 +200,8 @@ pub fn convert_slider_points_to_legacy(
 				#[allow(clippy::cast_possible_truncation)]
 				curve_points.extend(points.iter().map(|p| SliderPoint {
 					curve_type: SliderCurveType::Inherit,
-					x: p.x as i32,
-					y: p.y as i32,
+					x: p.x as f32,
+					y: p.y as f32,
 				}));
 			}
 

@@ -84,9 +84,10 @@ const SECTION_COLOURS: &str = "[Colours]";
 const SECTION_HIT_OBJECTS: &str = "[HitObjects]";
 
 #[derive(Debug, thiserror::Error)]
-#[error("Couldn't parse section [{section:?}]")]
+#[error("Couldn't parse section {section} at line {line:?}")]
 pub struct SectionParseError {
 	pub section: &'static str,
+	pub line: String,
 	#[source]
 	pub kind: SectionParseErrorKind,
 }
@@ -130,9 +131,13 @@ pub enum SectionParseErrorKind {
 	),
 }
 
-fn section_err<T: Into<SectionParseErrorKind>>(section: &'static str) -> impl FnOnce(T) -> SectionParseError {
+fn section_err<T: Into<SectionParseErrorKind>>(
+	section: &'static str,
+	line: String,
+) -> impl FnOnce(T) -> SectionParseError {
 	move |kind| SectionParseError {
 		section,
+		line,
 		kind: kind.into(),
 	}
 }
@@ -179,9 +184,10 @@ pub enum FieldValueParseErrorKind {
 fn field_err<T: Into<FieldValueParseErrorKind>>(
 	section: &'static str,
 	field: &'static str,
+	line: String,
 ) -> impl Fn(T) -> SectionParseError {
 	move |kind| {
-		section_err(section)(FieldValueParseError {
+		section_err(section, line.clone())(FieldValueParseError {
 			field,
 			kind: kind.into(),
 		})
@@ -197,7 +203,7 @@ fn parse_general_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_GENERAL))?;
+			let line = line.map_err(section_err(SECTION_GENERAL, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -205,67 +211,86 @@ fn parse_general_section(
 				break;
 			}
 
-			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_GENERAL))?;
+			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_GENERAL, line.clone()))?;
 
 			match field.as_str() {
 				"AudioFilename" => section.audio_filename = to_standardized_path(&value),
 				"AudioLeadIn" => {
 					section.audio_lead_in =
-						(value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "AudioLeadIn"))?;
+						(value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "AudioLeadIn", line.clone()))?;
 				}
 				"AudioHash" => section.audio_hash = Some(value),
 				"PreviewTime" => {
-					section.preview_time = (value.parse::<f64>()).map_err(field_err(SECTION_GENERAL, "PreviewTime"))?;
+					section.preview_time =
+						(value.parse::<f64>()).map_err(field_err(SECTION_GENERAL, "PreviewTime", line.clone()))?;
 				}
 				"Countdown" => {
-					section.countdown = (value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "Countdown"))?;
+					section.countdown =
+						(value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "Countdown", line.clone()))?;
 				}
 				"SampleSet" => section.sample_set = value,
 				"StackLeniency" => {
 					section.stack_leniency =
-						(value.parse::<f64>()).map_err(field_err(SECTION_GENERAL, "StackLeniency"))?;
+						(value.parse::<f64>()).map_err(field_err(SECTION_GENERAL, "StackLeniency", line.clone()))?;
 				}
-				"Mode" => section.mode = (value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "Mode"))?,
+				"Mode" => {
+					section.mode = (value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "Mode", line.clone()))?;
+				}
 				"LetterboxInBreaks" => {
 					section.letterbox_in_breaks =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "LetterboxInBreaks"))? != 0;
+						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "LetterboxInBreaks", line.clone()))?
+							!= 0;
 				}
 				"StoryFireInFront" => {
 					section.story_fire_in_front =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "StoryFireInFront"))? != 0;
+						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "StoryFireInFront", line.clone()))?
+							!= 0;
 				}
 				"UseSkinSprites" => {
 					section.use_skin_sprites =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "UseSkinSprites"))? != 0;
+						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "UseSkinSprites", line.clone()))? != 0;
 				}
 				"AlwaysShowPlayfield" => {
-					section.always_show_playfield =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "AlwaysShowPlayfield"))? != 0;
+					section.always_show_playfield = (value.parse::<u8>()).map_err(field_err(
+						SECTION_GENERAL,
+						"AlwaysShowPlayfield",
+						line.clone(),
+					))? != 0;
 				}
 				"OverlayPosition" => {
-					section.overlay_position =
-						(value.parse::<OverlayPosition>()).map_err(field_err(SECTION_GENERAL, "OverlayPosition"))?;
+					section.overlay_position = (value.parse::<OverlayPosition>()).map_err(field_err(
+						SECTION_GENERAL,
+						"OverlayPosition",
+						line.clone(),
+					))?;
 				}
 				"SkinPreference" => section.skin_preference = Some(value),
 				"EpilepsyWarning" => {
 					section.epilepsy_warning =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "EpilepsyWarning"))? != 0;
+						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "EpilepsyWarning", line.clone()))?
+							!= 0;
 				}
 				"CountdownOffset" => {
 					section.countdown_offset =
-						(value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "CountdownOffset"))?;
+						(value.parse::<i32>()).map_err(field_err(SECTION_GENERAL, "CountdownOffset", line.clone()))?;
 				}
 				"SpecialStyle" => {
 					section.special_style =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "SpecialStyle"))? != 0;
+						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "SpecialStyle", line.clone()))? != 0;
 				}
 				"WidescreenStoryboard" => {
-					section.widescreen_storyboard =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "WidescreenStoryboard"))? != 0;
+					section.widescreen_storyboard = (value.parse::<u8>()).map_err(field_err(
+						SECTION_GENERAL,
+						"WidescreenStoryboard",
+						line.clone(),
+					))? != 0;
 				}
 				"SamplesMatchPlaybackRate" => {
-					section.samples_match_playback_rate =
-						(value.parse::<u8>()).map_err(field_err(SECTION_GENERAL, "SamplesMatchPlaybackRate"))? != 0;
+					section.samples_match_playback_rate = (value.parse::<u8>()).map_err(field_err(
+						SECTION_GENERAL,
+						"SamplesMatchPlaybackRate",
+						line.clone(),
+					))? != 0;
 				}
 				key => tracing::warn!("[General] section: unknown field {key:?}"),
 			}
@@ -296,7 +321,7 @@ fn parse_editor_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_EDITOR))?;
+			let line = line.map_err(section_err(SECTION_EDITOR, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -304,21 +329,26 @@ fn parse_editor_section(
 				break;
 			}
 
-			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_EDITOR))?;
+			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_EDITOR, line.clone()))?;
 
 			match field.as_str() {
 				"Bookmarks" => {
-					bookmarks = parse_list_of(&value).map_err(field_err(SECTION_EDITOR, "Bookmarks"))?;
+					bookmarks = parse_list_of(&value).map_err(field_err(SECTION_EDITOR, "Bookmarks", line.clone()))?;
 				}
 				"DistanceSpacing" => {
-					distance_spacing = Some((value.parse()).map_err(field_err(SECTION_EDITOR, "DistanceSpacing"))?);
+					distance_spacing =
+						Some((value.parse()).map_err(field_err(SECTION_EDITOR, "DistanceSpacing", line.clone()))?);
 				}
 				"BeatDivisor" => {
-					beat_divisor = Some((value.parse()).map_err(field_err(SECTION_EDITOR, "BeatDivisor"))?);
+					beat_divisor =
+						Some((value.parse()).map_err(field_err(SECTION_EDITOR, "BeatDivisor", line.clone()))?);
 				}
-				"GridSize" => grid_size = Some((value.parse()).map_err(field_err(SECTION_EDITOR, "GridSize"))?),
+				"GridSize" => {
+					grid_size = Some((value.parse()).map_err(field_err(SECTION_EDITOR, "GridSize", line.clone()))?);
+				}
 				"TimelineZoom" => {
-					timeline_zoom = Some((value.parse()).map_err(field_err(SECTION_EDITOR, "TimelineZoom"))?);
+					timeline_zoom =
+						Some((value.parse()).map_err(field_err(SECTION_EDITOR, "TimelineZoom", line.clone()))?);
 				}
 				key => tracing::warn!("[Editor] section: unknown field {key:?}"),
 			}
@@ -333,13 +363,13 @@ fn parse_editor_section(
 		bookmarks,
 		distance_spacing: distance_spacing
 			.ok_or(UnspecifiedFieldError("DistanceSpacing"))
-			.map_err(section_err(SECTION_GENERAL))?,
+			.map_err(section_err(SECTION_GENERAL, "[Editor]".to_string()))?,
 		beat_divisor: beat_divisor
 			.ok_or(UnspecifiedFieldError("BeatDivisor"))
-			.map_err(section_err(SECTION_GENERAL))?,
+			.map_err(section_err(SECTION_GENERAL, "[Editor]".to_string()))?,
 		grid_size: grid_size
 			.ok_or(UnspecifiedFieldError("GridSize"))
-			.map_err(section_err(SECTION_GENERAL))?,
+			.map_err(section_err(SECTION_GENERAL, "[Editor]".to_string()))?,
 		timeline_zoom,
 	})
 }
@@ -353,7 +383,7 @@ fn parse_metadata_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_METADATA))?;
+			let line = line.map_err(section_err(SECTION_METADATA, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -361,7 +391,7 @@ fn parse_metadata_section(
 				break;
 			}
 
-			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_METADATA))?;
+			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_METADATA, line.clone()))?;
 
 			match field.as_str() {
 				"Title" => section.title = value,
@@ -375,11 +405,12 @@ fn parse_metadata_section(
 					section.tags = value.split(' ').map(std::borrow::ToOwned::to_owned).collect();
 				}
 				"BeatmapID" => {
-					section.beatmap_id = Some((value.parse()).map_err(field_err(SECTION_METADATA, "BeatmapID"))?);
+					section.beatmap_id =
+						Some((value.parse()).map_err(field_err(SECTION_METADATA, "BeatmapID", line.clone()))?);
 				}
 				"BeatmapSetID" => {
 					section.beatmap_set_id =
-						Some((value.parse()).map_err(field_err(SECTION_METADATA, "BeatmapSetID"))?);
+						Some((value.parse()).map_err(field_err(SECTION_METADATA, "BeatmapSetID", line.clone()))?);
 				}
 				key => tracing::warn!("[Metadata] section: unknown field {key:?}"),
 			}
@@ -402,7 +433,7 @@ fn parse_difficulty_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_DIFFICULTY))?;
+			let line = line.map_err(section_err(SECTION_DIFFICULTY, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -410,29 +441,33 @@ fn parse_difficulty_section(
 				break;
 			}
 
-			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_DIFFICULTY))?;
+			let (field, value) =
+				parse_field_value_pair(&line).map_err(section_err(SECTION_DIFFICULTY, line.clone()))?;
 
 			match field.as_str() {
 				"HPDrainRate" => {
-					section.hp_drain_rate = (value.parse()).map_err(field_err(SECTION_DIFFICULTY, "HPDrainRate"))?;
+					section.hp_drain_rate =
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "HPDrainRate", line.clone()))?;
 				}
 				"CircleSize" => {
-					section.circle_size = (value.parse()).map_err(field_err(SECTION_DIFFICULTY, "CircleSize"))?;
+					section.circle_size =
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "CircleSize", line.clone()))?;
 				}
 				"OverallDifficulty" => {
 					section.overall_difficulty =
-						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "OverallDifficulty"))?;
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "OverallDifficulty", line.clone()))?;
 				}
 				"ApproachRate" => {
-					section.approach_rate = (value.parse()).map_err(field_err(SECTION_DIFFICULTY, "ApproachRate"))?;
+					section.approach_rate =
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "ApproachRate", line.clone()))?;
 				}
 				"SliderMultiplier" => {
 					section.slider_multiplier =
-						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "SliderMultiplier"))?;
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "SliderMultiplier", line.clone()))?;
 				}
 				"SliderTickRate" => {
 					section.slider_tick_rate =
-						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "SliderTickRate"))?;
+						(value.parse()).map_err(field_err(SECTION_DIFFICULTY, "SliderTickRate", line.clone()))?;
 				}
 				key => tracing::warn!("[Difficulty] section: unknown field {key:?}"),
 			}
@@ -591,7 +626,7 @@ fn parse_events_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_EVENTS))?;
+			let line = line.map_err(section_err(SECTION_EVENTS, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -599,7 +634,7 @@ fn parse_events_section(
 				break;
 			}
 
-			if let Some(event) = parse_event(&line).map_err(section_err(SECTION_EVENTS))? {
+			if let Some(event) = parse_event(&line).map_err(section_err(SECTION_EVENTS, line.clone()))? {
 				events.push(event);
 			}
 		} else {
@@ -688,7 +723,7 @@ fn parse_timing_points_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_TIMING_POINTS))?;
+			let line = line.map_err(section_err(SECTION_TIMING_POINTS, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -696,7 +731,7 @@ fn parse_timing_points_section(
 				break;
 			}
 
-			let timing_point = parse_timing_point(&line).map_err(section_err(SECTION_TIMING_POINTS))?;
+			let timing_point = parse_timing_point(&line).map_err(section_err(SECTION_TIMING_POINTS, line.clone()))?;
 			timing_points.push(timing_point);
 		} else {
 			// We stop once we encounter an EOL character
@@ -743,7 +778,7 @@ fn parse_colors_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_COLOURS))?;
+			let line = line.map_err(section_err(SECTION_COLOURS, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -751,8 +786,8 @@ fn parse_colors_section(
 				break;
 			}
 
-			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_COLOURS))?;
-			let value = parse_color(&value).map_err(section_err(SECTION_COLOURS))?;
+			let (field, value) = parse_field_value_pair(&line).map_err(section_err(SECTION_COLOURS, line.clone()))?;
+			let value = parse_color(&value).map_err(section_err(SECTION_COLOURS, line.clone()))?;
 
 			if field.starts_with("Combo") {
 				// NOTE: This doesn't take into account the actual written index of the combo color.
@@ -1049,7 +1084,7 @@ fn parse_hit_objects_section(
 
 	loop {
 		if let Some(line) = reader.next() {
-			let line = line.map_err(section_err(SECTION_HIT_OBJECTS))?;
+			let line = line.map_err(section_err(SECTION_HIT_OBJECTS, "(corrupted line)".to_string()))?;
 
 			// We stop once we encounter a new section
 			if line.starts_with('[') && line.ends_with(']') {
@@ -1057,7 +1092,7 @@ fn parse_hit_objects_section(
 				break;
 			}
 
-			let hit_object = parse_hit_object(&line).map_err(section_err(SECTION_HIT_OBJECTS))?;
+			let hit_object = parse_hit_object(&line).map_err(section_err(SECTION_HIT_OBJECTS, line.clone()))?;
 			hit_objects.push(hit_object);
 		} else {
 			// We stop once we encounter an EOL character

@@ -440,9 +440,9 @@ pub struct SliderPoint {
 	/// (B = bézier, C = centripetal catmull-rom, L = linear, P = perfect circle)
 	pub curve_type: SliderCurveType,
 	/// Horizontal coordinate of the slider point.
-	pub x: i32,
+	pub x: f32,
 	/// Vertical coordinate of the slider point.
-	pub y: i32,
+	pub y: f32,
 }
 
 impl SliderPoint {
@@ -743,9 +743,9 @@ impl BitOrAssign for HitSound {
 #[derive(Clone, Debug)]
 pub struct HitObject {
 	/// Horizontal position in osu! pixels of the object.
-	pub x: i32,
+	pub x: f32,
 	/// Vertical position in osu! pixels of the object.
-	pub y: i32,
+	pub y: f32,
 	/// Time when the object is to be hit, in milliseconds from the beginning of the beatmap's audio.
 	pub time: Timestamp,
 	/// Bit flags indicating the type of the object.
