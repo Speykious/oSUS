@@ -174,6 +174,21 @@ pub fn convert_slider_points_to_legacy(
 			curve_points
 		}
 		_ => {
+			// Special cases for long sliders of a single curve type
+			use SliderCurveType as S;
+
+			if (curve_points.iter()).all(|cp| matches!(cp.curve_type, S::Linear | S::Inherit)) {
+				return Ok(curve_points.iter().copied().enumerate().map(|(i, mut cp)| {
+					cp.curve_type = if i == 0 { S::Linear } else { S::Inherit };
+					cp
+				}).collect());
+			}
+
+			if curve_points[0].curve_type == S::Bezier && (curve_points.iter()).all(|cp| cp.curve_type == S::Inherit) {
+				return Ok(curve_points.to_vec());
+			}
+
+			// Otherwise, convert slider to bézier
 			let mut segments = Vec::new();
 
 			let mut segment_start = 0;
@@ -193,7 +208,6 @@ pub fn convert_slider_points_to_legacy(
 			}
 
 			let mut curve_points = Vec::new();
-
 			for segment in segments {
 				let points = convert_to_bezier_anchors(segment)?;
 
