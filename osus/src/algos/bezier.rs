@@ -153,11 +153,9 @@ fn get_circle_arc_properties(control_points: &[SliderPoint; 3]) -> Option<Circle
 
 	let theta_start = da.y.atan2(da.x);
 	let theta_end = {
-		let mut te = dc.y.atan2(dc.x);
-		while te < theta_start {
-			te += TAU;
-		}
-		te
+		let theta_end = dc.y.atan2(dc.x);
+		// turn as many times as necessary so that theta_end >= theta_start
+		TAU.mul_add(((theta_start - theta_end) / TAU).ceil(), theta_end)
 	};
 
 	let mut theta_range = theta_end - theta_start;
@@ -217,6 +215,8 @@ fn convert_circle_to_bezier_anchors(points: &[SliderPoint; 3]) -> Vec<Point> {
 	// converge on arc length of theta range
 	let n = arc.len() - 1;
 	let mut tf = cs.theta_range / arc_len;
+
+	#[allow(clippy::while_float)]
 	while (tf - 1.0).abs() > 0.000_001 {
 		for j in 0..n {
 			for i in ((j + 1)..=n).rev() {

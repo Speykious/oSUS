@@ -59,19 +59,19 @@ pub struct GeneralSection {
 	/// Time in milliseconds when the audio preview should start
 	pub preview_time: Timestamp,
 	/// Speed of the countdown before the first hit object
-	/// - 0 = no countdown
-	/// - 1 = normal
-	/// - 2 = half
-	/// - 3 = double
+	/// - `0` = no countdown
+	/// - `1` = normal
+	/// - `2` = half
+	/// - `3` = double
 	pub countdown: i32,
 	/// Sample set that will be used if timing points do not override it (Normal, Soft, Drum)
 	pub sample_set: String,
 	/// Multiplier for the threshold in time where hit objects placed close together stack (0–1)
 	pub stack_leniency: f64,
-	/// - 0 = osu!
-	/// - 1 = osu!taiko
-	/// - 2 = osu!catch
-	/// - 3 = osu!mania
+	/// - `0` = osu!
+	/// - `1` = osu!taiko
+	/// - `2` = osu!catch
+	/// - `3` = osu!mania
 	pub mode: u8,
 	/// Whether or not breaks have a letterboxing effect
 	pub letterbox_in_breaks: bool,
@@ -82,9 +82,9 @@ pub struct GeneralSection {
 	/// Deprecated
 	pub always_show_playfield: bool,
 	/// Draw order of hit circle overlays compared to hit numbers
-	/// - NoChange = use skin setting,
-	/// - Below = draw overlays under numbers
-	/// - Above = draw overlays on top of numbers
+	/// - `NoChange` = use skin setting,
+	/// - `Below` = draw overlays under numbers
+	/// - `Above` = draw overlays on top of numbers
 	pub overlay_position: OverlayPosition,
 	/// Preferred skin to use during gameplay
 	pub skin_preference: Option<String>,
@@ -255,7 +255,7 @@ pub struct TimingPoint {
 	pub beat_length: f64,
 	/// Amount of beats in a measure. Inherited timing points ignore this property.
 	/// This number can be negative for some reason???
-	/// See beatmap https://osu.ppy.sh/beatmapsets/539221#osu/1265214
+	/// See beatmap <https://osu.ppy.sh/beatmapsets/539221#osu/1265214>
 	pub meter: i32,
 	/// Default sample set for hit objects (0 = beatmap default, 1 = normal, 2 = soft, 3 = drum).
 	pub sample_set: SampleBank,
