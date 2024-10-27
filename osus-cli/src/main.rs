@@ -255,16 +255,13 @@ fn cleanup_timing_points(beatmap: &mut BeatmapFile) {
 	tracing::warn!("Removing duplicates...");
 	beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 
-	if beatmap.general.as_ref().unwrap().mode == 0 {
-		// Speed changes can only be useless in std where they represent slider velocity.
-		// On mania for example, speed changes represent scroll velocity, so the timing point doesn't depend on hitobjects.
+	let mode = beatmap.general.as_ref().unwrap().mode;
 
-		tracing::warn!("Removing useless speed changes...");
-		beatmap.timing_points = remove_useless_speed_changes(&beatmap.timing_points, &beatmap.hit_objects);
+	tracing::warn!("Removing useless speed changes...");
+	beatmap.timing_points = remove_useless_speed_changes(mode, &beatmap.timing_points, &beatmap.hit_objects);
 
-		tracing::warn!("Removing duplicates again...");
-		beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
-	}
+	tracing::warn!("Removing duplicates again...");
+	beatmap.timing_points = remove_duplicates(&beatmap.timing_points);
 }
 
 /// Combine and merge the hitsound information of a bunch of hitobjects into another one.

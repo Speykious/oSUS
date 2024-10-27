@@ -68,7 +68,11 @@ pub fn remove_duplicates(timing_points: &[TimingPoint]) -> Vec<TimingPoint> {
 ///
 /// This is completely useless, so here's a function to remove them.
 #[must_use]
-pub fn remove_useless_speed_changes(timing_points: &[TimingPoint], hit_objects: &[HitObject]) -> Vec<TimingPoint> {
+pub fn remove_useless_speed_changes(
+	mode: u8,
+	timing_points: &[TimingPoint],
+	hit_objects: &[HitObject],
+) -> Vec<TimingPoint> {
 	if timing_points.is_empty() || hit_objects.is_empty() {
 		return Vec::new();
 	}
@@ -94,13 +98,18 @@ pub fn remove_useless_speed_changes(timing_points: &[TimingPoint], hit_objects: 
 			prev_timing_point = timing_point;
 			prev_timing_point_was_added = true;
 		} else if !prev_timing_point_was_added {
-			// verify if prev timing point is useless
-			let ho_slice = hit_objects.between(prev_timing_point.time..timing_point.time);
+			if mode == 0 {
+				// verify if prev timing point falls on a hitobject
+				let ho_slice = hit_objects.between(prev_timing_point.time..timing_point.time);
 
-			if ho_slice.iter().all(|ho| ho.is_hit_circle() || ho.is_spinner()) {
-				// prev_timing_point is useless
+				if ho_slice.iter().all(|ho| ho.is_hit_circle() || ho.is_spinner()) {
+					// prev_timing_point is useless
+				} else {
+					// prev_timing_point is useful
+					result_points.push(prev_timing_point.clone());
+				}
 			} else {
-				// prev_timing_point is useful
+				// Speed changes only depend on hitobjects in std mode, so they're otherwise always relevant.
 				result_points.push(prev_timing_point.clone());
 			}
 
@@ -178,10 +187,15 @@ pub fn convert_slider_points_to_legacy(
 			use SliderCurveType as S;
 
 			if (curve_points.iter()).all(|cp| matches!(cp.curve_type, S::Linear | S::Inherit)) {
-				return Ok(curve_points.iter().copied().enumerate().map(|(i, mut cp)| {
-					cp.curve_type = if i == 0 { S::Linear } else { S::Inherit };
-					cp
-				}).collect());
+				return Ok(curve_points
+					.iter()
+					.copied()
+					.enumerate()
+					.map(|(i, mut cp)| {
+						cp.curve_type = if i == 0 { S::Linear } else { S::Inherit };
+						cp
+					})
+					.collect());
 			}
 
 			if curve_points[0].curve_type == S::Bezier && (curve_points.iter()).all(|cp| cp.curve_type == S::Inherit) {
