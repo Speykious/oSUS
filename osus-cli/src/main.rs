@@ -13,8 +13,10 @@ use osus::algos::{
 	reset_hitsounds,
 };
 use osus::close_range;
+use osus::file::beatmap::parsing::parse_hit_object;
 use osus::file::beatmap::{
-	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderPoint, TimingPoint,
+	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderCurveType,
+	SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
 use tracing::Level;
@@ -113,6 +115,9 @@ enum Commands {
 		#[arg(help = PATH_HELP)]
 		path: PathBuf,
 	},
+
+	/// Print a slider in a more readable text format.
+	DebugSlider { slider: String },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -190,20 +195,15 @@ fn main() {
 			let out_path = out_path.unwrap_or(current_dir().unwrap().join("maps"));
 			cli_extract_osu_lazer_files(&out_path, recursive, &path)
 		}
-
 		Commands::Offset { millis, path } => cli_offset(millis, &path),
-
 		Commands::MixVolume { val, path } => cli_mix_volume(val, &path),
-
 		Commands::ResetSampleSets { sample, cleanup, path } => {
 			cli_reset_sample_sets(sample.to_sample_bank(), cleanup, &path)
 		}
-
 		Commands::CleanupTimingPoints { path } => cli_cleanup_timing_points(&path),
-
 		Commands::SplatHitsounds { sound_map, path, mania } => cli_splat_hitsounds(&sound_map, &path, mania),
-
 		Commands::LazerToStable { path } => cli_lazer_to_stable(&path),
+		Commands::DebugSlider { slider } => cli_debug_slider(&slider),
 	};
 
 	if let Err(err) = result {
@@ -620,5 +620,86 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
 	beatmap.osu_file_format = 14;
 
 	write_beatmap_out(&beatmap, path)?;
+	Ok(())
+}
+
+fn cli_debug_slider(slider: &str) -> Result<(), Box<dyn Error>> {
+	fn curve_type_abbr(curve_type: SliderCurveType) -> char {
+		match curve_type {
+			SliderCurveType::Inherit => 'I',
+			SliderCurveType::Bezier => 'B',
+			SliderCurveType::Catmull => 'C',
+			SliderCurveType::Linear => 'L',
+			SliderCurveType::PerfectCurve => 'P',
+		}
+	}
+
+	let hit_object = parse_hit_object(slider)?;
+
+	let HitObjectParams::Slider {
+		first_curve_type,
+		curve_points,
+		slides,
+		length,
+		edge_hitsounds,
+		edge_samplesets,
+	} = hit_object.object_params
+	else {
+		return Err("Provided object is not a slider".into());
+	};
+
+	println!(
+		"Slider ({} pts, {} slides, len = {})",
+		curve_points.len() + 1,
+		slides,
+		length
+	);
+	println!("{{");
+	{
+		println!("  Path");
+		println!("  {{");
+
+		println!(
+			"    {} | {:03}:{:03}",
+			curve_type_abbr(first_curve_type),
+			hit_object.x.round() as i32,
+			hit_object.y.round() as i32,
+		);
+
+		for curve_point in curve_points.iter().copied() {
+			println!(
+				"    {} | {:03}:{:03}",
+				curve_type_abbr(curve_point.curve_type),
+				curve_point.x.round() as i32,
+				curve_point.y.round() as i32,
+			);
+		}
+
+		println!("  }}");
+	}
+	{
+		println!("  Hitsounds");
+		println!("  {{");
+
+		println!(
+			"    {} {:?}:{:?}",
+			hit_object.hit_sound.fixed_flags_string(),
+			hit_object.hit_sample.normal_set,
+			hit_object.hit_sample.addition_set,
+		);
+
+		for (edge_hitsound, edge_sampleset) in edge_hitsounds.into_iter().zip(edge_samplesets) {
+			println!(
+				"    {} {:?}:{:?}",
+				edge_hitsound.fixed_flags_string(),
+				edge_sampleset.normal_set,
+				edge_sampleset.addition_set,
+			);
+		}
+
+		println!("  }}");
+	}
+	println!("}}");
+
 	Ok(())
 }

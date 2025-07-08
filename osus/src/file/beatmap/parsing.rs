@@ -965,7 +965,12 @@ pub enum HitObjectParseError {
 	),
 }
 
-fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
+/// Parse a hit object line.
+/// 
+/// # Errors
+/// 
+/// Fails if the line doesn't conform to the osu! hit object format spec.
+pub fn parse_hit_object(line: &str) -> Result<HitObject, HitObjectParseError> {
 	let args = line.split(',').collect::<Vec<_>>();
 	if let [x, y, time, object_type, hit_sound, object_params @ ..] = &args[..] {
 		let x = x.parse()?;
