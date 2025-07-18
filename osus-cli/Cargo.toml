@@ -3,14 +3,14 @@ name = "osus-cli"
 version = "0.1.0"
 description = "Various osu! utilities."
 authors = ["Speykious <speykious@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-clap = { version = "4.0.18", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 osus = { path = "../osus" }
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
-walkdir = "2.3.2"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+walkdir = "2.5"
 
 # Make target file smaller by not generating debug symbols.
 # If somehow a problem occurs in a dependency, we can comment it out temporarily.

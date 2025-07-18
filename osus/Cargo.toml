@@ -3,11 +3,11 @@ name = "osus"
 version = "0.1.0"
 description = "Library for various osu! utilities and scripts."
 authors = ["Speykious <speykious@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-thiserror = "1.0.31"
-tracing = "0.1.40"
+thiserror = "2.0"
+tracing = "0.1"
 
 # Make target file smaller by not generating debug symbols.
 # If somehow a problem occurs in a dependency, we can comment it out temporarily.

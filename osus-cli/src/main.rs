@@ -15,8 +15,8 @@ use osus::algos::{
 use osus::close_range;
 use osus::file::beatmap::parsing::parse_hit_object;
 use osus::file::beatmap::{
-	BeatmapFile, HitObject, HitObjectParams, HitSample, HitSampleSet, HitSound, SampleBank, SliderCurveType,
-	SliderPoint, TimingPoint,
+	BeatmapFile, HitObject, HitObjectParams, HitObjectType, HitSample, HitSampleSet, HitSound, SampleBank,
+	SliderCurveType, SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
 use tracing::Level;
@@ -116,6 +116,16 @@ enum Commands {
 		path: PathBuf,
 	},
 
+	/// Convert a std map to a 4K mania map.
+	/// - Hitcircles in the first column,
+	/// - Sliders in the second column,
+	/// - Slider starts/ends in the third column,
+	/// - Spinners in the fourth column.
+	StdToMania {
+		#[arg(help = PATH_HELP)]
+		path: PathBuf,
+	},
+
 	/// Print a slider in a more readable text format.
 	DebugSlider { slider: String },
 }
@@ -204,18 +214,19 @@ fn main() {
 		Commands::SplatHitsounds { sound_map, path, mania } => cli_splat_hitsounds(&sound_map, &path, mania),
 		Commands::LazerToStable { path } => cli_lazer_to_stable(&path),
 		Commands::DebugSlider { slider } => cli_debug_slider(&slider),
+		Commands::StdToMania { path } => cli_std_to_mania(&path),
 	};
 
 	if let Err(err) = result {
-		println!("Error: {}", err);
+		println!("Error: {err}");
 
 		let mut e = err.deref();
 		while let Some(sauce) = e.source() {
-			println!("-> {}", sauce);
+			println!("-> {sauce}");
 			e = sauce;
 		}
 
-		println!("\n{:#?}", err);
+		println!("\n{err:#?}");
 	}
 }
 
@@ -528,7 +539,7 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path, is_mania: bool
 			match group {
 				[] => break,
 				[_] => continue,
-				[ref mut first, ref mut remains @ ..] => {
+				[first, remains @ ..] => {
 					let normal_set = first.hit_sample.normal_set;
 					let addition_set = first.hit_sample.addition_set;
 
@@ -701,5 +712,137 @@ fn cli_debug_slider(slider: &str) -> Result<(), Box<dyn Error>> {
 	}
 	println!("}}");
 
+	Ok(())
+}
+
+// Union of characters forbidden in both Windows and Linux/Unix.
+// (Linux/Unix only forbids forward slashes.)
+const FORBIDDEN_FILE_NAME_CHARS: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+fn cli_std_to_mania(path: &Path) -> Result<(), Box<dyn Error>> {
+	let mut beatmap = parse_beatmap(path, true)?;
+
+	let Some(general) = &mut beatmap.general else {
+		return Err("Beatmap has no general section".into());
+	};
+
+	if general.mode != 0 {
+		return Err("Beatmap is not for std".into());
+	}
+
+	let Some(difficulty) = &mut beatmap.difficulty else {
+		return Err("Beatmap has no difficulty section".into());
+	};
+
+	let file_name = {
+		let Some(metadata) = &mut beatmap.metadata else {
+			return Err("Beatmap has no metadata section".into());
+		};
+
+		metadata.version += " - mania";
+
+		format!(
+			"{} - {} ({}) [{}].osu",
+			metadata.artist.replace(FORBIDDEN_FILE_NAME_CHARS, "_"),
+			metadata.title.replace(FORBIDDEN_FILE_NAME_CHARS, "_"),
+			metadata.creator.replace(FORBIDDEN_FILE_NAME_CHARS, "_"),
+			metadata.version.replace(FORBIDDEN_FILE_NAME_CHARS, "_"),
+		)
+	};
+
+	general.mode = 3; // mania
+	difficulty.circle_size = 4.0; // 4 columns
+
+	let slider_multiplier = difficulty.slider_multiplier as f64;
+	let key_count = beatmap.key_count();
+
+	let mut new_hit_objects = Vec::new();
+
+	let mut beat_length = 0.0;
+	let mut slider_velocity = 1.0;
+	for ho_tp in beatmap.iter_hit_objects_and_timing_points() {
+		match ho_tp {
+			Ok(hit_object) => match &hit_object.object_params {
+				HitObjectParams::HitCircle => {
+					// convert hitcircle to single note in the first column
+					let mut hit_object = hit_object.clone();
+
+					let (x, y) = BeatmapFile::mania_column_as_position(0.0, key_count);
+					hit_object.x = x;
+					hit_object.y = y;
+
+					new_hit_objects.push(hit_object);
+				}
+				HitObjectParams::Slider {
+					length,
+					slides,
+					edge_hitsounds,
+					edge_samplesets,
+					..
+				} => {
+					// convert slider to long note on the second column and one note per edge on the third column
+					let mut hit_object = hit_object.clone();
+
+					let timestamp = hit_object.time;
+					let dur = *length * beat_length / (slider_multiplier * 100.0 * slider_velocity);
+					let end_time = timestamp + dur * (*slides as f64);
+
+					let (x, y) = BeatmapFile::mania_column_as_position(1.0, key_count);
+					hit_object.object_type = HitObjectType::Hold;
+					hit_object.object_params = HitObjectParams::Hold { end_time };
+					hit_object.x = x;
+					hit_object.y = y;
+
+					let (x, y) = BeatmapFile::mania_column_as_position(2.0, key_count);
+					for i in 0..=*slides as usize {
+						let hitsound = edge_hitsounds.get(i).copied().unwrap_or_default();
+						let sampleset = edge_samplesets.get(i).copied().unwrap_or_default();
+
+						let local_timestamp = timestamp + i as f64 * dur;
+
+						let mut hit_object = hit_object.clone();
+						hit_object.time = local_timestamp;
+						hit_object.object_type = HitObjectType::HitCircle;
+						hit_object.object_params = HitObjectParams::HitCircle;
+						hit_object.x = x;
+						hit_object.y = y;
+						hit_object.hit_sound = hitsound;
+						hit_object.hit_sample.normal_set = sampleset.normal_set;
+						hit_object.hit_sample.addition_set = sampleset.addition_set;
+
+						new_hit_objects.push(hit_object);
+					}
+
+					new_hit_objects.push(hit_object);
+				}
+				HitObjectParams::Spinner { end_time } => {
+					// convert spinner to long note in the fourth column
+					let mut hit_object = hit_object.clone();
+
+					let (x, y) = BeatmapFile::mania_column_as_position(3.0, key_count);
+					hit_object.x = x;
+					hit_object.y = y;
+
+					hit_object.object_type = HitObjectType::Hold;
+					hit_object.object_params = HitObjectParams::Hold { end_time: *end_time };
+
+					new_hit_objects.push(hit_object);
+				}
+
+				// ignore because it's not supposed to exist in a std map
+				HitObjectParams::Hold { .. } => {}
+			},
+			Err(timing_point) if timing_point.uninherited => {
+				beat_length = timing_point.beat_length;
+			}
+			Err(timing_point) => {
+				slider_velocity = -100.0 / timing_point.beat_length;
+			}
+		}
+	}
+
+	beatmap.hit_objects = new_hit_objects;
+
+	write_beatmap_out(&beatmap, &path.with_file_name(file_name))?;
 	Ok(())
 }

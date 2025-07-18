@@ -603,7 +603,7 @@ impl HitSample {
 	}
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct HitSound(u8);
 
@@ -904,5 +904,37 @@ impl BeatmapFile {
 	#[must_use]
 	pub fn iter_hit_objects_and_timing_points(&self) -> InterleavedTimestampedIterator<HitObject, TimingPoint> {
 		self.hit_objects.interleave_timestamped(&self.timing_points)
+	}
+
+	#[must_use]
+	pub fn key_count(&self) -> f32 {
+		(self.difficulty.as_ref())
+			.map_or(20.0, |d| d.circle_size)
+			.floor()
+			.max(1.0)
+	}
+
+	#[must_use]
+	pub fn position_as_mania_column(&self, hit_object: &HitObject, key_count: f32) -> f32 {
+		(hit_object.x * key_count / 512.0).floor().clamp(0.0, key_count - 1.0)
+	}
+
+	#[must_use]
+	pub fn mania_column_as_position(column: f32, key_count: f32) -> (f32, f32) {
+		let column = column.floor().clamp(0.0, key_count - 1.0) + 0.5;
+		(column * 512.0 / key_count, 192.0)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::file::beatmap::BeatmapFile;
+
+	#[test]
+	fn test() {
+		assert_eq!((64.0, 192.0), BeatmapFile::mania_column_as_position(0.0, 4.0));
+		assert_eq!((192.0, 192.0), BeatmapFile::mania_column_as_position(1.0, 4.0));
+		assert_eq!((320.0, 192.0), BeatmapFile::mania_column_as_position(2.0, 4.0));
+		assert_eq!((448.0, 192.0), BeatmapFile::mania_column_as_position(3.0, 4.0));
 	}
 }
