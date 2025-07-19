@@ -459,9 +459,9 @@ fn cli_splat_hitsounds(soundmap_path: &Path, beatmap_path: &Path, is_mania: bool
 
 						let mut hit_object = hit_object.clone();
 
-						let start_hitsounds = (soundmap.hit_objects).between(close_range(hit_object.timestamp(), 2.0));
-
-						hitsound_hit_object(&mut hit_object, start_hitsounds);
+						hit_object.hit_sound = HitSound::NONE;
+						hit_object.hit_sample.normal_set = SampleBank::Auto;
+						hit_object.hit_sample.addition_set = SampleBank::Auto;
 
 						let timestamp = hit_object.timestamp();
 						let dur = *length * beat_length / (slider_multiplier * 100.0 * slider_velocity);
