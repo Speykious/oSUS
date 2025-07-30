@@ -144,7 +144,11 @@ fn serialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) ->
 		writeln!(writer, "Combo{}: {}\r", i + 1, combo_color.to_osu_string())?;
 	}
 	if let Some(slider_track_override) = section.slider_track_override {
-		writeln!(writer, "SliderTrackOverride: {}\r", slider_track_override.to_osu_string())?;
+		writeln!(
+			writer,
+			"SliderTrackOverride: {}\r",
+			slider_track_override.to_osu_string()
+		)?;
 	}
 	if let Some(slider_border) = section.slider_border {
 		writeln!(writer, "SliderBorder: {}\r", slider_border.to_osu_string())?;
@@ -157,6 +161,15 @@ fn serialize_curve_points<W: Write>(
 	curve_points: &[SliderPoint],
 	writer: &mut W,
 ) -> io::Result<()> {
+	let preprefix = match first_curve_type {
+		SliderCurveType::Inherit => "",
+		SliderCurveType::Bezier => "B|",
+		SliderCurveType::Catmull => "C|",
+		SliderCurveType::Linear => "L|",
+		SliderCurveType::PerfectCurve => "P|",
+	};
+	write!(writer, "{preprefix}")?;
+
 	let mut started = false;
 	for &curve_point in curve_points {
 		if started {
@@ -164,6 +177,7 @@ fn serialize_curve_points<W: Write>(
 		}
 
 		let SliderPoint { curve_type, x, y } = curve_point;
+
 		let prefix = match curve_type {
 			SliderCurveType::Inherit => "",
 			SliderCurveType::Bezier => "B|",
@@ -171,17 +185,6 @@ fn serialize_curve_points<W: Write>(
 			SliderCurveType::Linear => "L|",
 			SliderCurveType::PerfectCurve => "P|",
 		};
-
-		if !started && curve_type != first_curve_type {
-			let preprefix = match first_curve_type {
-				SliderCurveType::Inherit => "",
-				SliderCurveType::Bezier => "B|",
-				SliderCurveType::Catmull => "C|",
-				SliderCurveType::Linear => "L|",
-				SliderCurveType::PerfectCurve => "P|",
-			};
-			write!(writer, "{preprefix}")?;
-		}
 
 		write!(writer, "{prefix}{x}:{y}")?;
 		started = true;
@@ -284,4 +287,42 @@ pub fn serialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W) -
 	}
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::file::beatmap::serializing::serialize_curve_points;
+	use crate::file::beatmap::{SliderCurveType, SliderPoint};
+
+	#[test]
+	fn curve_points() {
+		let first_curve_point = SliderCurveType::Bezier;
+		let curve_points = &[
+			SliderPoint::new_i16(SliderCurveType::Bezier, 465, 225),
+			SliderPoint::new_i16(SliderCurveType::Bezier, 473, 217),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 457, 121),
+		];
+
+		let mut s: Vec<u8> = Vec::new();
+		serialize_curve_points(first_curve_point, curve_points, &mut s).unwrap();
+
+		assert_eq!(b"B|B|465:225|B|473:217|457:121", s.as_slice());
+	}
+
+	#[test]
+	fn curve_points_stable() {
+		let first_curve_point = SliderCurveType::Bezier;
+		let curve_points = &[
+			SliderPoint::new_i16(SliderCurveType::Inherit, 465, 225),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 465, 225),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 473, 217),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 473, 217),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 457, 121),
+		];
+
+		let mut s: Vec<u8> = Vec::new();
+		serialize_curve_points(first_curve_point, curve_points, &mut s).unwrap();
+
+		assert_eq!(b"B|465:225|465:225|473:217|473:217|457:121", s.as_slice());
+	}
 }
