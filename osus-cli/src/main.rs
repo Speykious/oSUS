@@ -257,7 +257,7 @@ fn parse_beatmap(path: &Path, do_backup: bool) -> Result<BeatmapFile, Box<dyn Er
 fn write_beatmap_out(beatmap: &BeatmapFile, path: &Path) -> io::Result<()> {
 	tracing::warn!("Write beatmap to {}...", path.display());
 	let mut out_file = File::create(path)?;
-	beatmap.deserialize(&mut out_file)?;
+	beatmap.serialize(&mut out_file)?;
 
 	Ok(())
 }

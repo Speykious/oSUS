@@ -5,13 +5,13 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::path::Path;
 use std::str::FromStr;
 
-pub mod deserializing;
+pub mod serializing;
 pub mod parsing;
 pub mod utils;
 
 use crate::point::Point;
 use crate::{ExtTimestamped, InterleavedTimestampedIterator, Timestamped};
-use deserializing::deserialize_beatmap_file;
+use serializing::serialize_beatmap_file;
 use parsing::parse_osu_file;
 
 use self::parsing::BeatmapFileParseError;
@@ -907,8 +907,8 @@ impl BeatmapFile {
 	/// # Errors
 	///
 	/// This function will return an error if an IO issue occured.
-	pub fn deserialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
-		deserialize_beatmap_file(self, writer)
+	pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+		serialize_beatmap_file(self, writer)
 	}
 
 	#[must_use]

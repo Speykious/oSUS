@@ -6,7 +6,7 @@ use super::{
 	TimingPoint,
 };
 
-fn deserialize_general_section<W: Write>(section: &GeneralSection, writer: &mut W) -> io::Result<()> {
+fn serialize_general_section<W: Write>(section: &GeneralSection, writer: &mut W) -> io::Result<()> {
 	writeln!(writer, "[General]\r")?;
 	writeln!(writer, "AudioFilename: {}\r", section.audio_filename)?;
 	writeln!(writer, "AudioLeadIn: {}\r", section.audio_lead_in)?;
@@ -50,7 +50,7 @@ fn deserialize_general_section<W: Write>(section: &GeneralSection, writer: &mut 
 	writeln!(writer, "\r")
 }
 
-fn deserialize_editor_section<W: Write>(section: &EditorSection, writer: &mut W) -> io::Result<()> {
+fn serialize_editor_section<W: Write>(section: &EditorSection, writer: &mut W) -> io::Result<()> {
 	writeln!(writer, "[Editor]\r")?;
 	if !section.bookmarks.is_empty() {
 		let bookmarks: Vec<_> = section.bookmarks.iter().map(f32::to_string).collect();
@@ -65,7 +65,7 @@ fn deserialize_editor_section<W: Write>(section: &EditorSection, writer: &mut W)
 	writeln!(writer, "\r")
 }
 
-fn deserialize_metadata_section<W: Write>(section: &MetadataSection, writer: &mut W) -> io::Result<()> {
+fn serialize_metadata_section<W: Write>(section: &MetadataSection, writer: &mut W) -> io::Result<()> {
 	writeln!(writer, "[Metadata]\r")?;
 	writeln!(writer, "Title: {}\r", section.title)?;
 	writeln!(writer, "TitleUnicode: {}\r", section.title_unicode)?;
@@ -86,7 +86,7 @@ fn deserialize_metadata_section<W: Write>(section: &MetadataSection, writer: &mu
 	writeln!(writer, "\r")
 }
 
-fn deserialize_difficulty_section<W: Write>(section: &DifficultySection, writer: &mut W) -> io::Result<()> {
+fn serialize_difficulty_section<W: Write>(section: &DifficultySection, writer: &mut W) -> io::Result<()> {
 	writeln!(writer, "[Difficulty]\r")?;
 	writeln!(writer, "HPDrainRate: {}\r", section.hp_drain_rate)?;
 	writeln!(writer, "CircleSize: {}\r", section.circle_size)?;
@@ -97,7 +97,7 @@ fn deserialize_difficulty_section<W: Write>(section: &DifficultySection, writer:
 	writeln!(writer, "\r")
 }
 
-fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> {
+fn serialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> {
 	write!(writer, "{},{},", event.event_type, event.start_time)?;
 	match &event.params {
 		EventParams::Video {
@@ -118,7 +118,7 @@ fn deserialize_event<W: Write>(event: &Event, writer: &mut W) -> io::Result<()> 
 	}
 }
 
-fn deserialize_timing_point<W: Write>(timing_point: &TimingPoint, writer: &mut W) -> io::Result<()> {
+fn serialize_timing_point<W: Write>(timing_point: &TimingPoint, writer: &mut W) -> io::Result<()> {
 	let TimingPoint {
 		time,
 		beat_length,
@@ -138,7 +138,7 @@ fn deserialize_timing_point<W: Write>(timing_point: &TimingPoint, writer: &mut W
 	)
 }
 
-fn deserialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) -> io::Result<()> {
+fn serialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) -> io::Result<()> {
 	writeln!(writer, "[Colours]\r")?;
 	for (i, combo_color) in section.combo_colors.iter().enumerate() {
 		writeln!(writer, "Combo{}: {}\r", i + 1, combo_color.to_osu_string())?;
@@ -152,7 +152,7 @@ fn deserialize_color_section<W: Write>(section: &ColorsSection, writer: &mut W) 
 	writeln!(writer, "\r")
 }
 
-fn deserialize_curve_points<W: Write>(
+fn serialize_curve_points<W: Write>(
 	first_curve_type: SliderCurveType,
 	curve_points: &[SliderPoint],
 	writer: &mut W,
@@ -190,7 +190,7 @@ fn deserialize_curve_points<W: Write>(
 	Ok(())
 }
 
-fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> io::Result<()> {
+fn serialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> io::Result<()> {
 	let HitObject {
 		x,
 		y,
@@ -216,7 +216,7 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
 			edge_samplesets,
 		} => {
 			write!(writer, ",")?;
-			deserialize_curve_points(*first_curve_type, curve_points, writer)?;
+			serialize_curve_points(*first_curve_type, curve_points, writer)?;
 			write!(writer, ",{slides},{length}")?;
 
 			if !edge_hitsounds.is_empty() && !edge_samplesets.is_empty() {
@@ -240,26 +240,26 @@ fn deserialize_hit_object<W: Write>(hit_object: &HitObject, writer: &mut W) -> i
 /// # Errors
 ///
 /// This function will return an error if an IO issue occured.
-pub fn deserialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W) -> io::Result<()> {
+pub fn serialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W) -> io::Result<()> {
 	write!(writer, "osu file format v{}\r\n\r\n", bm_file.osu_file_format)?;
 
 	if let Some(general) = &bm_file.general {
-		deserialize_general_section(general, writer)?;
+		serialize_general_section(general, writer)?;
 	}
 	if let Some(editor) = &bm_file.editor {
-		deserialize_editor_section(editor, writer)?;
+		serialize_editor_section(editor, writer)?;
 	}
 	if let Some(metadata) = &bm_file.metadata {
-		deserialize_metadata_section(metadata, writer)?;
+		serialize_metadata_section(metadata, writer)?;
 	}
 	if let Some(difficulty) = &bm_file.difficulty {
-		deserialize_difficulty_section(difficulty, writer)?;
+		serialize_difficulty_section(difficulty, writer)?;
 	}
 
 	if !bm_file.events.is_empty() {
 		writeln!(writer, "[Events]\r")?;
 		for event in &bm_file.events {
-			deserialize_event(event, writer)?;
+			serialize_event(event, writer)?;
 		}
 		writeln!(writer, "\r")?;
 	}
@@ -267,19 +267,19 @@ pub fn deserialize_beatmap_file<W: Write>(bm_file: &BeatmapFile, writer: &mut W)
 	if !bm_file.timing_points.is_empty() {
 		writeln!(writer, "[TimingPoints]\r")?;
 		for timing_point in &bm_file.timing_points {
-			deserialize_timing_point(timing_point, writer)?;
+			serialize_timing_point(timing_point, writer)?;
 		}
 		writeln!(writer, "\r")?;
 	}
 
 	if let Some(colors) = &bm_file.colors {
-		deserialize_color_section(colors, writer)?;
+		serialize_color_section(colors, writer)?;
 	}
 
 	if !bm_file.hit_objects.is_empty() {
 		writeln!(writer, "[HitObjects]\r")?;
 		for hit_object in &bm_file.hit_objects {
-			deserialize_hit_object(hit_object, writer)?;
+			serialize_hit_object(hit_object, writer)?;
 		}
 	}
 
