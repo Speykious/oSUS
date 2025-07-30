@@ -688,28 +688,28 @@ fn parse_timing_point(line: &str) -> Result<TimingPoint, TimingPointParseError> 
 
 	if let Some(time) = values.next() {
 		timing_point.time = time.parse()?;
-	};
+	}
 	if let Some(beat_length) = values.next() {
 		timing_point.beat_length = beat_length.parse()?;
-	};
+	}
 	if let Some(meter) = values.next() {
 		timing_point.meter = meter.parse()?;
-	};
+	}
 	if let Some(sample_set) = values.next() {
 		timing_point.sample_set = sample_set.parse()?;
-	};
+	}
 	if let Some(sample_index) = values.next() {
 		timing_point.sample_index = sample_index.parse()?;
-	};
+	}
 	if let Some(volume) = values.next() {
 		timing_point.volume = volume.parse()?;
-	};
+	}
 	if let Some(uninherited) = values.next() {
 		timing_point.uninherited = uninherited.parse::<u8>()? != 0;
-	};
+	}
 	if let Some(effects) = values.next() {
 		timing_point.effects = effects.parse()?;
-	};
+	}
 
 	Ok(timing_point)
 }
@@ -1258,7 +1258,7 @@ where
 						.map_err(beatmap_section_err(filename))?;
 				}
 				_ => section_header = None,
-			};
+			}
 		}
 	}
 
