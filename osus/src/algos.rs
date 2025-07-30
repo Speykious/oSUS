@@ -5,7 +5,7 @@ use crate::file::beatmap::{
 };
 use crate::{Timestamped, TimestampedSlice};
 
-use self::bezier::{convert_to_bezier_anchors, BezierConversionError};
+use self::bezier::{BezierConversionError, convert_to_bezier_anchors};
 
 /// Offsets all timing points and hitobjects' times.
 pub fn offset_map(beatmap: &mut BeatmapFile, offset_millis: f64) {

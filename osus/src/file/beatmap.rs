@@ -5,14 +5,14 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::path::Path;
 use std::str::FromStr;
 
-pub mod serializing;
 pub mod parsing;
+pub mod serializing;
 pub mod utils;
 
 use crate::point::Point;
 use crate::{ExtTimestamped, InterleavedTimestampedIterator, Timestamped};
-use serializing::serialize_beatmap_file;
 use parsing::parse_osu_file;
+use serializing::serialize_beatmap_file;
 
 use self::parsing::BeatmapFileParseError;
 
@@ -453,7 +453,11 @@ impl SliderPoint {
 
 	#[must_use]
 	pub const fn new_i16(curve_type: SliderCurveType, x: i16, y: i16) -> Self {
-		Self { curve_type, x: x as f32, y: y as f32 }
+		Self {
+			curve_type,
+			x: x as f32,
+			y: y as f32,
+		}
 	}
 
 	#[must_use]
@@ -938,7 +942,7 @@ impl BeatmapFile {
 
 #[cfg(test)]
 mod tests {
-    use crate::file::beatmap::BeatmapFile;
+	use crate::file::beatmap::BeatmapFile;
 
 	#[test]
 	fn test() {
