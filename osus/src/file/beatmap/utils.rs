@@ -4,7 +4,7 @@ use crate::file::beatmap::{SliderCurveType, SliderPoint};
 
 pub struct SliderPointsView<'a>(pub &'a [SliderPoint]);
 
-impl<'a> fmt::Display for SliderPointsView<'a> {
+impl fmt::Display for SliderPointsView<'_> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		if let [first_curve_point, ..] = self.0 {
 			let first_curve_type = first_curve_point.curve_type;

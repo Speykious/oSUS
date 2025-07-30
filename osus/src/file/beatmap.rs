@@ -434,7 +434,7 @@ pub enum SliderCurveType {
 }
 
 /// Anchor point used to construct a slider.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SliderPoint {
 	/// Type of curve used to construct this slider.
 	/// (B = bézier, C = centripetal catmull-rom, L = linear, P = perfect circle)
@@ -446,6 +446,16 @@ pub struct SliderPoint {
 }
 
 impl SliderPoint {
+	#[must_use]
+	pub const fn new(curve_type: SliderCurveType, x: f32, y: f32) -> Self {
+		Self { curve_type, x, y }
+	}
+
+	#[must_use]
+	pub const fn new_i16(curve_type: SliderCurveType, x: i16, y: i16) -> Self {
+		Self { curve_type, x: x as f32, y: y as f32 }
+	}
+
 	#[must_use]
 	pub fn to_point(&self) -> Point {
 		Point {

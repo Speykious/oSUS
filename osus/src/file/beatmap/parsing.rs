@@ -1264,3 +1264,22 @@ where
 
 	Ok(beatmap)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::file::beatmap::parsing::parse_curve_points;
+    use crate::file::beatmap::{SliderCurveType, SliderPoint};
+
+	#[test]
+	fn curve_points() {
+		let curve_points = "B|B|465:225|B|473:217|457:121";
+		let (curve_type, control_points) = parse_curve_points(curve_points).unwrap();
+
+		assert_eq!(curve_type, SliderCurveType::Bezier);
+		assert_eq!(control_points.as_slice(), &[
+			SliderPoint::new_i16(SliderCurveType::Bezier, 465, 225),
+			SliderPoint::new_i16(SliderCurveType::Bezier, 473, 217),
+			SliderPoint::new_i16(SliderCurveType::Inherit, 457, 121),
+		]);
+	}
+}
