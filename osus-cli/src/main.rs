@@ -15,7 +15,7 @@ use osus::algos::{
 use osus::close_range;
 use osus::file::beatmap::parsing::parse_hit_object;
 use osus::file::beatmap::{
-	BeatmapFile, HitObject, HitObjectParams, HitObjectType, HitSample, HitSampleSet, HitSound, SampleBank,
+	BeatmapFile, EventParams, HitObject, HitObjectParams, HitObjectType, HitSample, HitSampleSet, HitSound, SampleBank,
 	SliderCurveType, SliderPoint, TimingPoint,
 };
 use osus::{ExtTimestamped, Timestamped, TimestampedSlice};
@@ -599,6 +599,10 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
 
 	for event in &mut beatmap.events {
 		event.start_time = event.start_time.floor();
+
+		if let EventParams::Break { end_time } = &mut event.params {
+			*end_time = end_time.floor();
+		}
 	}
 
 	for hit_object in &mut beatmap.hit_objects {
