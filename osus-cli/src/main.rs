@@ -597,6 +597,10 @@ fn cli_lazer_to_stable(path: &Path) -> Result<(), Box<dyn Error>> {
 		timing_point.time = timing_point.time.floor();
 	}
 
+	for event in &mut beatmap.events {
+		event.start_time = event.start_time.floor();
+	}
+
 	for hit_object in &mut beatmap.hit_objects {
 		hit_object.time = hit_object.time.floor();
 
